@@ -5,24 +5,23 @@
 
 name: Nightly
 on:
-  schedule:
-    - cron: "00 04 * * *"
-
   workflow_dispatch:
-    inputs:
-      branch:
-        description: 'Branch to run the nightly (for SiVal job only)'
-        required: true
-        type: string
+  schedule:
+    - cron: "00 02 * * *"
 
 permissions:
-  id-token: write
   contents: read
-
-env:
-  VIVADO_VERSION: "2021.1"
+  # Needed for workload identity federation
+  id-token: write
 
 jobs:
+  # On-demand tests
+  on-demand:
+    name: Run On-demand Tests
+    uses: ./.github/workflows/zr-ci.yml
+    secrets: inherit
+
+  # Build FPGA bitstreams.
   chip_earlgrey_cw310:
     name: Earl Grey for CW310
     uses: ./.github/workflows/bitstream.yml
@@ -30,6 +29,7 @@ jobs:
     with:
       top_name: earlgrey
       design_suffix: cw310
+      vivado_version: '2024.1'
 
   chip_earlgrey_cw310_hyperdebug:
     name: Earl Grey for CW310 Hyperdebug
@@ -38,6 +38,7 @@ jobs:
     with:
       top_name: earlgrey
       design_suffix: cw310_hyperdebug
+      vivado_version: '2024.1'
 
   chip_earlgrey_cw340:
     name: Earl Grey for CW340
@@ -47,183 +48,69 @@ jobs:
       top_name: earlgrey
       design_suffix: cw340
 
-  execute_fpga_cw310_test_rom_tests:
-    name: CW310 Test ROM Tests
-    needs: chip_earlgrey_cw310_hyperdebug
-    uses: ./.github/workflows/fpga.yml
-    secrets: inherit
-    with:
-      job_name: execute_fpga_cw310_test_rom_tests
-      bitstream: chip_earlgrey_cw310_hyperdebug
-      board: cw310
-      interface: hyper310
-      tag_filters: cw310_test_rom,-broken,-manual
-      add_default_filters: false
-      cache_test_results: false
-
-  execute_fpga_cw310_rom_tests:
-    name: CW310 ROM Tests
-    needs: chip_earlgrey_cw310_hyperdebug
-    uses: ./.github/workflows/fpga.yml
-    secrets: inherit
-    with:
-      job_name: execute_fpga_cw310_rom_tests
-      bitstream: chip_earlgrey_cw310_hyperdebug
-      board: cw310
-      interface: hyper310
-      tag_filters: cw310_rom_with_fake_keys,-broken,-manual
-      add_default_filters: false
-      cache_test_results: false
-      timeout: 240
-
-  execute_fpga_cw310_rom_ext_tests:
-    name: CW310 ROM_EXT Tests
-    needs: chip_earlgrey_cw310_hyperdebug
-    uses: ./.github/workflows/fpga.yml
-    secrets: inherit
-    with:
-      job_name: execute_fpga_cw310_rom_ext_tests
-      bitstream: chip_earlgrey_cw310_hyperdebug
-      board: cw310
-      interface: hyper310
-      tag_filters: cw310_rom_ext,-broken,-manual
-      add_default_filters: false
-      cache_test_results: false
-
-  execute_fpga_cw310_sival_tests:
-    name: CW310 SiVal Tests
-    needs: chip_earlgrey_cw310_hyperdebug
-    uses: ./.github/workflows/fpga.yml
-    secrets: inherit
-    with:
-      job_name: execute_fpga_cw310_sival_tests
-      bitstream: chip_earlgrey_cw310_hyperdebug
-      board: cw310
-      interface: hyper310
-      tag_filters: cw310_sival,-broken,-manual
-      add_default_filters: false
-      cache_test_results: false
-
-  execute_fpga_cw310_sival_rom_ext_tests:
-    name: CW310 SiVal ROM_EXT Tests
-    needs: chip_earlgrey_cw310_hyperdebug
-    uses: ./.github/workflows/fpga.yml
-    secrets: inherit
-    with:
-      job_name: execute_fpga_cw310_sival_rom_ext_tests
-      bitstream: chip_earlgrey_cw310_hyperdebug
-      board: cw310
-      interface: hyper310
-      tag_filters: cw310_sival_rom_ext,-broken,-manual
-      add_default_filters: false
-      cache_test_results: false
-
-  execute_fpga_cw310_bob_tests:
-    name: CW310 BoB (SPI and I2C) Tests
-    needs: chip_earlgrey_cw310
-    uses: ./.github/workflows/fpga.yml
-    secrets: inherit
-    with:
-      job_name: execute_bob_fpga_tests_cw310
-      bitstream: chip_earlgrey_cw310
-      board: cw310
-      interface: cw310
-      targets: "//sw/device/tests/pmod/..."
-      tag_filters: cw310_sival_rom_ext_no_hyper,-broken,-manual
-      add_default_filters: false
-      cache_test_results: false
-
-  execute_fpga_cw340_test_rom_tests:
-    name: CW340 SiVal Test ROM Tests
-    needs: chip_earlgrey_cw340
-    uses: ./.github/workflows/fpga.yml
-    secrets: inherit
-    with:
-      job_name: execute_fpga_cw340_test_rom_tests
-      bitstream: chip_earlgrey_cw340
-      board: cw340
-      interface: cw340
-      tag_filters: cw340_test_rom,-broken,-manual
-      add_default_filters: false
-      cache_test_results: false
-
-  execute_fpga_cw340_rom_tests:
-    name: CW340 SiVal ROM Tests
-    needs: chip_earlgrey_cw340
-    uses: ./.github/workflows/fpga.yml
-    secrets: inherit
-    with:
-      job_name: execute_fpga_cw340_rom_tests
-      bitstream: chip_earlgrey_cw340
-      board: cw340
-      interface: cw340
-      tag_filters: cw340_rom_with_fake_keys,-broken,-manual
-      add_default_filters: false
-      cache_test_results: false
-
-  execute_fpga_cw340_rom_ext_tests:
-    name: CW340 SiVal ROM_EXT Tests
-    needs: chip_earlgrey_cw340
-    uses: ./.github/workflows/fpga.yml
-    secrets: inherit
-    with:
-      job_name: execute_fpga_cw340_rom_ext_tests
-      bitstream: chip_earlgrey_cw340
-      board: cw340
-      interface: cw340
-      tag_filters: cw340_rom_ext,-broken,-manual
-      add_default_filters: false
-      cache_test_results: false
-
-  execute_fpga_cw340_sival_tests:
-    name: CW340 SiVal Tests
-    needs: chip_earlgrey_cw340
-    uses: ./.github/workflows/fpga.yml
-    secrets: inherit
-    with:
-      job_name: execute_fpga_cw340_sival_tests
-      bitstream: chip_earlgrey_cw340
-      board: cw340
-      interface: cw340
-      tag_filters: cw340_sival,-broken,-manual
-      add_default_filters: false
-      cache_test_results: false
-
-  execute_fpga_cw340_sival_rom_ext_tests:
-    name: CW340 SiVal ROM_EXT Tests
-    needs: chip_earlgrey_cw340
-    uses: ./.github/workflows/fpga.yml
-    secrets: inherit
-    with:
-      job_name: execute_fpga_cw340_sival_rom_ext_tests
-      bitstream: chip_earlgrey_cw340
-      board: cw340
-      interface: cw340
-      tag_filters: cw340_sival_rom_ext,-broken,-manual
-      add_default_filters: false
-      cache_test_results: false
-      timeout: 90
-
-  slow_otbn_crypto_tests:
-    name: Slow OTBN Crypto Tests
-    runs-on: ubuntu-22.04
-    timeout-minutes: 180
+  cache_bitstreams:
+    name: Cache bitstreams to GCP
+    runs-on:
+      group: zerorisc-none
+    needs:
+      - chip_earlgrey_cw310
+      - chip_earlgrey_cw310_hyperdebug
+      - chip_earlgrey_cw340
     steps:
       - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0 # Required for the bitstream cache to work.
       - name: Prepare environment
         uses: ./.github/actions/prepare-env
         with:
           service_account_json: '${{ secrets.BAZEL_CACHE_CREDS }}'
-      - name: Run the tests
-        run: |
-          ./bazelisk.sh test \
-            --cache_test_results=no \
-            --test_tag_filters=nightly \
-            //sw/otbn/crypto/...
-      - name: Publish Bazel test results
-        uses: ./.github/actions/publish-bazel-test-results
-        if: ${{ !cancelled() }}
+      - name: Download partial build-bin
+        uses: ./.github/actions/download-partial-build-bin
         with:
-          artifact-name: slow_otbn_crypto_tests-test-results
+          job-patterns: chip_earlgrey_{cw310,cw310_hyperdebug,cw340}
+      - name: Create bitstream cache archive
+        run: |
+          shopt -s globstar # Allow use of **
+          ./bazelisk.sh build //util/py/scripts:bitstream_cache_create
+          ./bazelisk.sh run //util/py/scripts:bitstream_cache_create -- \
+            --schema $PWD/rules/scripts/bitstreams_manifest.schema.json \
+            --stamp-file $PWD/bazel-out/volatile-status.txt \
+            --out $PWD/build-bin/bitstream-cache \
+            $PWD/build-bin/**/manifest.json
+      - name: Upload bitstreams to GCP bucket
+        run: |
+          BUCKET_URI=gs://expo-bitstreams/${{ github.ref_name }}
+          printf "$(date -u +%Y-%m-%dT%H:%M:%S)\n${{ github.sha }}" > latest.txt
+          gcloud storage cp build-bin/bitstream-cache/bitstream-cache.tar.gz $BUCKET_URI/bitstream-${{ github.sha }}.tar.gz
+          gcloud storage cp latest.txt $BUCKET_URI/latest.txt
+          gcloud storage cp $BUCKET_URI/bitstream-${{ github.sha }}.tar.gz $BUCKET_URI/bitstream-latest.tar.gz
+
+   # Hyper310 on-demand FPGA jobs
+   execute_ondemand_tests_hyper310:
+     name: Hyper310 On-Demand Tests
+     needs: chip_earlgrey_cw310_hyperdebug
+     uses: ./.github/workflows/hyper310-pr.yml
+     secrets: inherit
+
+   # CW340 on-demand FPGA jobs
+   execute_ondemand_tests_cw340:
+     name: CW340 On-Demand Tests
+     needs: chip_earlgrey_cw340
+     uses: ./.github/workflows/cw340-pr.yml
+     secrets: inherit
+
+   # Hyper310 nightly FPGA jobs
+   execute_nightly_tests_hyper310:
+     name: Hyper310 Nightly Tests
+     needs: chip_earlgrey_cw310_hyperdebug
+     uses: ./.github/workflows/hyper310-nightly.yml
+     secrets: inherit
+     with:
+       bitstream: chip_earlgrey_cw310_hyperdebug
+
+   # CW340 nightly FPGA jobs
+   execute_nightly_tests_cw340:
+     name: CW340 Nightly Tests
+     needs: chip_earlgrey_cw340
+     uses: ./.github/workflows/cw340-nightly.yml
+     secrets: inherit
+     with:
+       bitstream: chip_earlgrey_cw340

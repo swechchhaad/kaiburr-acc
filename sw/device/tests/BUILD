@@ -4279,6 +4279,10 @@ opentitan_test(
         ),
         EARLGREY_SILICON_OWNER_ROM_EXT_ENVS,
     ),
+    # TODO: Remove when zeroRISC CI supports SPI flash.
+    fpga = fpga_params(
+        tags = ["skip_in_ci"],
+    ),
     deps = [
         ":spi_host_flash_test_impl",
         "//hw/top_earlgrey/sw/autogen:top_earlgrey",
@@ -4695,6 +4699,10 @@ opentitan_test(
         EARLGREY_TEST_ENVS,
         EARLGREY_SILICON_OWNER_ROM_EXT_ENVS,
     ),
+    # TODO: Remove when zeroRISC CI supports USB.
+    fpga = fpga_params(
+        tags = ["skip_in_ci"],
+    ),
     silicon = silicon_params(
         test_cmd = """
             --bootstrap="{firmware}"
@@ -4726,6 +4734,8 @@ opentitan_test(
         EARLGREY_SILICON_OWNER_ROM_EXT_ENVS,
     ),
     fpga = fpga_params(
+        # TODO: Remove when zeroRISC CI supports USB.
+        tags = ["skip_in_ci"],
         test_cmd = """
             --bootstrap="{firmware}"
             --no-wait-for-usb-device
@@ -4761,6 +4771,8 @@ opentitan_test(
         EARLGREY_SILICON_OWNER_ROM_EXT_ENVS,
     ),
     fpga = fpga_params(
+        # TODO: Remove when zeroRISC CI supports USB.
+        tags = ["skip_in_ci"],
         test_cmd = """
             --bootstrap="{firmware}"
             --no-wait-for-usb-device
@@ -4825,6 +4837,8 @@ opentitan_test(
         EARLGREY_SILICON_OWNER_ROM_EXT_ENVS,
     ),
     fpga = fpga_params(
+        # TODO: Remove when zeroRISC CI supports USB.
+        tags = ["skip_in_ci"],
         test_cmd = """
             --bootstrap="{firmware}"
             --no-wait-for-usb-device
@@ -4905,6 +4919,8 @@ opentitan_test(
         EARLGREY_SILICON_OWNER_ROM_EXT_ENVS,
     ),
     fpga = fpga_params(
+        # TODO: Remove when zeroRISC CI supports USB.
+        tags = ["skip_in_ci"],
         test_cmd = """
             --bootstrap="{firmware}"
             --no-wait-for-usb-device
@@ -4941,6 +4957,8 @@ opentitan_test(
         EARLGREY_SILICON_OWNER_ROM_EXT_ENVS,
     ),
     fpga = fpga_params(
+        # TODO: Remove when zeroRISC CI supports USB.
+        tags = ["skip_in_ci"],
         test_cmd = """
             --bootstrap="{firmware}"
             --no-wait-for-usb-device
@@ -5038,6 +5056,8 @@ opentitan_test(
         EARLGREY_SILICON_OWNER_ROM_EXT_ENVS,
     ),
     fpga = fpga_params(
+        # TODO: Remove when zeroRISC CI supports USB.
+        tags = ["skip_in_ci"],
         test_cmd = """
             --bootstrap="{firmware}"
             --exec=$(rootpath :usbdev_stream_host_harness)
@@ -5077,6 +5097,8 @@ opentitan_test(
         EARLGREY_SILICON_OWNER_ROM_EXT_ENVS,
     ),
     fpga = fpga_params(
+        # TODO: Remove when zeroRISC CI supports USB.
+        tags = ["skip_in_ci"],
         test_cmd = """
             --bootstrap="{firmware}"
             --exec=$(rootpath :usbdev_stream_host_harness)
@@ -5116,6 +5138,8 @@ opentitan_test(
         EARLGREY_SILICON_OWNER_ROM_EXT_ENVS,
     ),
     fpga = fpga_params(
+        # TODO: Remove when zeroRISC CI supports USB.
+        tags = ["skip_in_ci"],
         test_cmd = """
             --bootstrap="{firmware}"
             --exec=$(rootpath :usbdev_stream_host_harness)
@@ -5152,6 +5176,8 @@ opentitan_test(
         EARLGREY_SILICON_OWNER_ROM_EXT_ENVS,
     ),
     fpga = fpga_params(
+        # TODO: Remove when zeroRISC CI supports USB.
+        tags = ["skip_in_ci"],
         test_cmd = """
             --bootstrap="{firmware}"
             --no-wait-for-usb-device
@@ -5242,6 +5268,8 @@ opentitan_test(
         "usbdev_suspend_resume_test.c",
     ],
     cw310 = fpga_params(
+        # TODO: Remove when zeroRISC CI supports USB.
+        tags = ["skip_in_ci"],
         test_cmd = """
             --bootstrap="{firmware}"
             --fin-phase=suspend
@@ -5280,6 +5308,8 @@ opentitan_test(
         "usbdev_sleep_resume_test.c",
     ],
     cw310 = fpga_params(
+        # TODO: Remove when zeroRISC CI supports USB.
+        tags = ["skip_in_ci"],
         test_cmd = """
             --bootstrap="{firmware}"
             --fin-phase=sleep-resume
@@ -5319,6 +5349,8 @@ opentitan_test(
         "usbdev_sleep_reset_test.c",
     ],
     cw310 = fpga_params(
+        # TODO: Remove when zeroRISC CI supports USB.
+        tags = ["skip_in_ci"],
         test_cmd = """
             --bootstrap="{firmware}"
             --fin-phase=sleep-reset
@@ -5402,6 +5434,8 @@ opentitan_test(
         "usbdev_deep_resume_test.c",
     ],
     cw310 = fpga_params(
+        # TODO: Remove when zeroRISC CI supports USB.
+        tags = ["skip_in_ci"],
         test_cmd = """
             --bootstrap="{firmware}"
             --fin-phase=deep-resume
@@ -5441,6 +5475,8 @@ opentitan_test(
         "usbdev_deep_reset_test.c",
     ],
     cw310 = fpga_params(
+        # TODO: Remove when zeroRISC CI supports USB.
+        tags = ["skip_in_ci"],
         test_cmd = """
             --bootstrap="{firmware}"
             --fin-phase=deep-reset
@@ -5480,6 +5516,8 @@ opentitan_test(
         "usbdev_deep_disconnect_test.c",
     ],
     cw310 = fpga_params(
+        # TODO: Remove when zeroRISC CI supports USB.
+        tags = ["skip_in_ci"],
         test_cmd = """
             --bootstrap="{firmware}"
             --fin-phase=shutdown
@@ -7683,6 +7721,9 @@ opentitan_test(
         },
     ),
     fpga = fpga_params(
+        # TODO: This test was very flaky during CI testing. Remove this tag when
+        # the issue is resolved.
+        tags = ["skip_in_ci"],
         test_cmd = """
             --bootstrap={firmware}
             --firmware-elf=\"{firmware:elf}\"

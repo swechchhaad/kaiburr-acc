@@ -33,7 +33,10 @@ export BITSTREAM="--offline --list ci_bitstreams"
 # We will lose serial access when we reboot, but if tests fail we should reboot
 # in case we've crashed the UART handler on the CW310's SAM3U
 # Note that the hyperdebug backend does not have the reset-sam3x command so this will fail but not trigger an error.
-trap './bazelisk.sh run //sw/host/opentitantool -- --rcfile= --interface=${fpga} fpga reset-sam3x || true' EXIT
+#
+# TODO: This is disabled on the zeroRISC CI because it causes a USB device
+# remapping on the host.
+#trap './bazelisk.sh run //sw/host/opentitantool -- --rcfile= --interface=${fpga} fpga reset-sam3x || true' EXIT
 
 # In case tests update OTP or otherwise leave state on the FPGA we should start
 # by clearing the bitstream.

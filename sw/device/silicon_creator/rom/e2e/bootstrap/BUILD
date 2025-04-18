@@ -79,6 +79,8 @@ opentitan_test(
         changes_otp = True,
         needs_jtag = True,
         otp = "otp_img_bootstrap_rma",
+        # TODO: Remove when zeroRISC CI supports JTAG bootstrapping.
+        tags = ["skip_in_ci"],
         test_cmd = """
             --bootstrap="{firmware}"
         """,

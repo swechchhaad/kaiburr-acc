@@ -68,6 +68,9 @@ dependencies = [
   "fusesoc==2.4.3",
 
   "peakrdl-systemrdl >= 1.0",
+
+  # Dependency license checker
+  "pip-licenses==5.0.0",
 ]
 
 [tool.setuptools]

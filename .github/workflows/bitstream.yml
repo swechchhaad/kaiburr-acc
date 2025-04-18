@@ -11,13 +11,14 @@ on:
       design_suffix:
         type: string
       vivado_version:
-        default: "2021.1"
+        default: "2024.1"
         type: string
 
 jobs:
   bitstream:
     name: Build bitstream
-    runs-on: ubuntu-22.04-bitstream
+    runs-on:
+      group: zerorisc-vivado
     timeout-minutes: 240
     steps:
       - uses: actions/checkout@v4
@@ -27,7 +28,9 @@ jobs:
         uses: ./.github/actions/prepare-env
         with:
           service_account_json: '${{ secrets.BAZEL_CACHE_CREDS }}'
-
+          ts-oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
+          ts-oauth-secret: ${{ secrets.TS_OAUTH_SECRET }}
+          vivado-version: ${{ inputs.vivado_version }}
       - name: Configure bitstream strategy
         id: strategy
         run: |
@@ -75,7 +78,7 @@ jobs:
           }
 
           . util/build_consts.sh
-          module load "xilinx/vivado/${{inputs.vivado_version }}"
+          # module load "xilinx/vivado/${{inputs.vivado_version }}"
           ./bazelisk.sh build ${archive_target}
 
       - name: Display synthesis & implementation logs

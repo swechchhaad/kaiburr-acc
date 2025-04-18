@@ -98,6 +98,7 @@ def _fusesoc_build_impl(ctx):
                 "HOME": home_dir,
                 # Obtain the non-hermetic binary path and append Bazel's default PATH.
                 "PATH": BIN_PATHS["vivado" if ctx.attr.target == "synth" else "verilator"] + ":/bin:/usr/bin:/usr/local/bin",
+                "LD_PRELOAD": "/lib/x86_64-linux-gnu/libudev.so.1",
             },
         ),
     )

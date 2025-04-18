@@ -6,7 +6,6 @@
 name: CI
 on:
   pull_request:
-  push:
     branches-ignore:
       - "backport-*"
       - "gh-readonly-queue/**"
@@ -15,6 +14,7 @@ on:
   merge_group:
     types:
       - checks_requested
+  workflow_call:
 
 permissions:
   contents: read
@@ -23,17 +23,18 @@ permissions:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+  cancel-in-progress: true
 
 env:
-  VIVADO_VERSION: "2021.1"
+  VIVADO_VERSION: "2024.1"
   # Release tag from https://github.com/lowRISC/lowrisc-toolchains/releases
   TOOLCHAIN_VERSION: 20220210-1
 
 jobs:
   quick_lint:
     name: Lint (quick)
-    runs-on: ubuntu-22.04
+    runs-on:
+      group: zerorisc-none
     steps:
       - uses: actions/checkout@v4
         with:
@@ -54,6 +55,8 @@ jobs:
         run: ./ci/scripts/exec-check.sh
       - name: Non-ASCII characters
         run: ./ci/scripts/check-ascii.sh
+      - name: Check Bazel build graph
+        run: ./bazelisk.sh build --nobuild //...
       - name: Python (flake8)
         run: ./ci/scripts/python-lint.sh "$GITHUB_BASE_REF"
         if: ${{ github.event_name == 'pull_request' }}
@@ -84,7 +87,8 @@ jobs:
 
   slow_lint:
     name: Lint (slow)
-    runs-on: ubuntu-22.04
+    runs-on:
+      group: zerorisc-none
     needs: quick_lint
     if: ${{ github.event_name != 'merge_group' }}
     steps:
@@ -114,6 +118,10 @@ jobs:
       - name: DV software images
         run: ./ci/scripts/check_dv_sw_images.sh
         continue-on-error: true
+      # zR: Currently commented out because it expects an upstream status report
+      # to exist for the current (internal) commit.
+      #- name: Build documentation
+      #  run: ./ci/scripts/build-docs.sh
       - name: Generated files
         run: ./ci/scripts/check-generated.sh
         env:
@@ -133,9 +141,56 @@ jobs:
       - name: Validate alert classification for Darjeeling
         run: ./ci/scripts/validate_alert_classification.sh hw/top_darjeeling/ip_autogen/alert_handler/data/top_darjeeling_alert_handler.ipconfig.hjson hw/top_darjeeling/data/otp/otp_ctrl_img_owner_sw_cfg.hjson
 
+  dependency-licenses:
+    name: Check software dependency licenses
+    runs-on:
+      group: zerorisc-none
+    needs: quick_lint
+    steps:
+      - uses: actions/checkout@v4
+      - name: Prepare environment
+        uses: ./.github/actions/prepare-env
+        with:
+          service_account_json: '${{ secrets.BAZEL_CACHE_CREDS }}'
+      - name: Check Python licenses
+        run: |
+          ALLOWED=(
+            'apache'
+            'Apache-2.0'
+            'Apache Software License'
+            'BSD'
+            'BSD-3-Clause'
+            'BSD License'
+            'Freeware'
+            'GNU Lesser General Public License v2 or later (LGPLv2+)'
+            'GNU Lesser General Public License v3 (LGPLv3)'
+            'GNU Library or Lesser General Public License (LGPL)'
+            'MIT'
+            'MIT License'
+            'Mozilla Public License 2.0 (MPL 2.0)'
+            'Public Domain'
+            'Python Software Foundation License'
+            'UNKNOWN'
+          )
+          ALLOWED_SEMI=${ALLOWED[0]}
+          for lic in "${ALLOWED[@]}"; do
+              ALLOWED_SEMI="$ALLOWED_SEMI;$lic"
+          done;
+          pip-licenses --allow-only "$ALLOWED_SEMI"
+      - name: Install cargo
+        run: |
+          curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+          echo "~/.cargo/bin" >> "$GITHUB_PATH"
+      - name: Check Rust licenses
+        run: |
+          cargo install cargo-deny --version 0.18.4
+          cargo deny --all-features --manifest-path third_party/rust/Cargo.toml check licenses
+          cargo deny --all-features --manifest-path third_party/tock/Cargo.toml check licenses
+
   build_docs:
     name: Build documentation
-    runs-on: ubuntu-22.04
+    runs-on:
+      group: zerorisc-none
     needs: quick_lint
     if: ${{ github.event_name != 'merge_group' }}
     env:
@@ -156,62 +211,11 @@ jobs:
           name: docs
           path: build-site/
           overwrite: true
-      - name: Upload files
-        if: ${{ github.event_name != 'pull_request' && github.ref_name == 'master' }}
-        run: |
-          echo "::group::Upload all uncompressed files"
-          gcloud storage cp -R --gzip-in-flight=js,css,html "build-site/*" gs://$BUCKET
-          echo "::endgroup::"
-
-          # This script compresses the searchindex files, replacing the originals in-place.
-          # (This is how 'content-encoding'-tagged files should be uploaded to gcloud buckets)
-          util/site/post-build.sh compress_br
-
-          search_indexes=$(find build-site/ -type f -name '*searchindex.json')
-          for f in $search_indexes; do
-              echo "Uploading compressed file ${f}"
-              # Get directory of file, relative to the build directory.
-              # - var=${var#*//} # removes stuff from the begining up to //
-              dir=$(dirname "${f#*build-site/}")
-              # When serving from gcloud buckets, file should be uploaded with an identical name as the
-              # original, but compressed and with the matching 'content-encoding' and 'content-type' tags applied.
-              gcloud storage cp \
-                     --content-encoding=br \
-                     --content-type=application/json \
-                     -R \
-                     "$f" "gs://$BUCKET/${dir}/"
-          done
-
-  airgapped_build:
-    name: Airgapped build
-    runs-on: ubuntu-22.04
-    needs: quick_lint
-    if: ${{ github.event_name != 'merge_group' }}
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0 # Bitstream cache requires all commits.
-      - name: Prepare environment
-        uses: ./.github/actions/prepare-env
-        with:
-          service_account_json: '${{ secrets.BAZEL_CACHE_CREDS }}'
-          configure-bazel: false
-      - name: Free disk space
-        uses: jlumbroso/free-disk-space@54081f138730dfa15788a46383842cd2f914a1be
-      - name: Check disk space
-        run: |
-          df -h
-      - name: Prepare airgapped environment
-        run: ./util/prep-bazel-airgapped-build.sh
-      - name: Check disk space
-        run: |
-          df -h
-      - name: Build in the airgapped environment
-        run: ./ci/scripts/test-airgapped-build.sh
 
   verible_lint:
     name: Verible lint
-    runs-on: ubuntu-24.04
+    runs-on:
+      group: zerorisc-none
     needs: quick_lint
     if: ${{ github.event_name == 'pull_request' }}
     env:
@@ -244,7 +248,8 @@ jobs:
   otbn_standalone_tests:
     name: Run OTBN smoke Test
     needs: quick_lint
-    runs-on: ubuntu-22.04
+    runs-on:
+      group: zerorisc-none
     if: ${{ github.event_name != 'merge_group' }}
     timeout-minutes: 10
     steps:
@@ -278,7 +283,8 @@ jobs:
   otbn_crypto_tests:
     name: Run OTBN crypto tests
     needs: quick_lint
-    runs-on: ubuntu-22.04
+    runs-on:
+      group: zerorisc-none
     if: ${{ github.event_name != 'merge_group' }}
     timeout-minutes: 60
     steps:
@@ -292,40 +298,10 @@ jobs:
       - name: Execute tests
         run: ./bazelisk.sh test --test_tag_filters=-nightly //sw/otbn/crypto/...
 
-  verilator_englishbreakfast:
-    name: Verilated English Breakfast
-    runs-on: ubuntu-22.04
-    needs: quick_lint
-    if: ${{ github.event_name != 'merge_group' }}
-    steps:
-      - uses: actions/checkout@v4
-      - name: Prepare environment
-        uses: ./.github/actions/prepare-env
-        with:
-          service_account_json: '${{ secrets.BAZEL_CACHE_CREDS }}'
-      - name: Build simulator with Verilator
-        run: |
-          ./bazelisk.sh build //hw/top_englishbreakfast:verilator_sim
-          sim_binary_path=$(./bazelisk.sh cquery --output=files //hw/top_englishbreakfast:verilator_sim)
-          mkdir -p build-bin/hw/top_englishbreakfast
-          cp ${sim_binary_path} build-bin/hw/top_englishbreakfast/
-      - name: Upload binary
-        uses: actions/upload-artifact@v4
-        with:
-          name: verilated_englishbreakfast
-          path: build-bin/hw/top_englishbreakfast/Vchip_englishbreakfast_verilator
-          overwrite: true
-      - name: Test
-        run: ./ci/scripts/run-english-breakfast-verilator-tests.sh
-        # The patching mechanism for english breakfast is incompatible with multitop
-        # so this job will fail. At the same time, multitop is not advanced enough
-        # that we can compile those tests for EB yet. Ignore this job until we can
-        # fix it.
-        continue-on-error: true
-
   verilator_earlgrey:
     name: Verilated Earl Grey
-    runs-on: ubuntu-22.04
+    runs-on:
+      group: zerorisc-none
     needs: quick_lint
     if: ${{ github.event_name != 'merge_group' }}
     timeout-minutes: 240
@@ -343,349 +319,51 @@ jobs:
         with:
           artifact-name: verilator_earlgrey-test-results
 
-  # Build CW305 variant of the English Breakfast toplevel design using Vivado
-  chip_englishbreakfast_cw305:
-    name: CW305's Bitstream
-    runs-on: ubuntu-22.04-vivado
-    needs: quick_lint
-    if: ${{ github.event_name != 'merge_group' }}
-    steps:
-      - uses: actions/checkout@v4
-      - name: Prepare environment
-        uses: ./.github/actions/prepare-env
-        with:
-          service_account_json: '${{ secrets.BAZEL_CACHE_CREDS }}'
-      - name: Build bitstream
-        run: |
-          . util/build_consts.sh
-
-          bitstream_target=//hw/top_englishbreakfast/bitstream:fpga_cw305
-          archive_target=//hw/top_englishbreakfast/bitstream:englishbreakfast_cw305_archive
-          bitstream_archive=$(./bazelisk.sh outquery ${archive_target})
-
-          trap 'get_logs' EXIT
-          get_logs() {
-            design_name=chip_englishbreakfast_cw305
-            SUB_PATH="hw/top_englishbreakfast/${design_name}"
-            mkdir -p "$OBJ_DIR/$SUB_PATH" "$BIN_DIR/$SUB_PATH"
-            # This can fail if the build result is from Bazel cache
-            cp -rLvt "$OBJ_DIR/$SUB_PATH/" \
-              $(./bazelisk.sh outquery-all ${bitstream_target}) || true
-
-            # TODO: Splice ROM into the bitstream?
-            cp -Lv ${bitstream_archive} build-bin.tar
-          }
-
-          # Build the bitstream first. It has an empty ROM (all zeroes).
-          module load "xilinx/vivado/${VIVADO_VERSION}"
-          ./bazelisk.sh build //hw/top_englishbreakfast/bitstream:englishbreakfast_cw305_archive
-          tar xvf ${bitstream_archive}
-
-          # Build CW305 test rom required by `build-bitstream-vivado.sh`
-          rom_path="sw/device/lib/testing/test_rom"
-          ./bazelisk.sh build "//${rom_path}:test_rom_fpga_cw305" \
-            --features=-rv32_bitmanip \
-            --copt=-DOT_IS_ENGLISH_BREAKFAST_REDUCED_SUPPORT_FOR_INTERNAL_USE_ONLY_
-          vmem="$(./bazelisk.sh cquery --output=files "//${rom_path}:test_rom_fpga_cw305" \
-            --features=-rv32_bitmanip \
-            --copt=-DOT_IS_ENGLISH_BREAKFAST_REDUCED_SUPPORT_FOR_INTERNAL_USE_ONLY_
-          )"
-          mkdir -p "build-bin/${rom_path}"
-          cp "$vmem" "build-bin/${rom_path}"
-
-      - name: Upload bitstream
-        uses: actions/upload-artifact@v4
-        with:
-          name: chip_englishbreakfast_cw305
-          path: build-bin.tar
-          overwrite: true
-
   chip_earlgrey_cw310_hyperdebug:
     name: Earl Grey for CW310 Hyperdebug
     needs: quick_lint
+    if: github.event_name == 'pull_request'
     uses: ./.github/workflows/bitstream.yml
     secrets: inherit
     with:
       top_name: earlgrey
       design_suffix: cw310_hyperdebug
+      vivado_version: '2024.1'
 
   chip_earlgrey_cw340:
     name: Earl Grey for CW340
     needs: quick_lint
+    if: github.event_name == 'pull_request'
     uses: ./.github/workflows/bitstream.yml
     secrets: inherit
     with:
       top_name: earlgrey
       design_suffix: cw340
 
-  cache_bitstreams:
-    name: Cache bitstreams to GCP
-    runs-on: ubuntu-22.04
-    if: ${{ github.event_name != 'pull_request' }}
-    needs:
-      - chip_earlgrey_cw310_hyperdebug
-      - chip_earlgrey_cw340
-    steps:
-      - uses: actions/checkout@v4
-      - name: Prepare environment
-        uses: ./.github/actions/prepare-env
-        with:
-          service_account_json: '${{ secrets.BAZEL_CACHE_CREDS }}'
-      - name: Download partial build-bin
-        uses: ./.github/actions/download-partial-build-bin
-        with:
-          job-patterns: chip_earlgrey_{cw310,cw310_hyperdebug,cw340}
-      - name: Create bitstream cache archive
-        run: |
-          shopt -s globstar # Allow use of **
-          ./bazelisk.sh build //util/py/scripts:bitstream_cache_create
-          ./bazelisk.sh run //util/py/scripts:bitstream_cache_create -- \
-            --schema $PWD/rules/scripts/bitstreams_manifest.schema.json \
-            --stamp-file $PWD/bazel-out/volatile-status.txt \
-            --out $PWD/build-bin/bitstream-cache \
-            $PWD/build-bin/**/manifest.json
-      - name: Upload bitstreams to GCP bucket
-        run: |
-          BUCKET_URI=gs://opentitan-bitstreams/${{ github.ref_name }}
-          printf "$(date -u +%Y-%m-%dT%H:%M:%S)\n${{ github.sha }}" > latest.txt
-          gcloud storage cp build-bin/bitstream-cache/bitstream-cache.tar.gz $BUCKET_URI/bitstream-${{ github.sha }}.tar.gz
-          gcloud storage cp latest.txt $BUCKET_URI/latest.txt
-          gcloud storage cp $BUCKET_URI/bitstream-${{ github.sha }}.tar.gz $BUCKET_URI/bitstream-latest.tar.gz
-
-  # CW310 FPGA jobs.
-  execute_test_rom_fpga_tests_cw310:
-    name: CW310 Test ROM Tests
+  # Hyper310 FPGA jobs
+  execute_tests_hyper310:
+    name: Hyper310 Tests
     needs: chip_earlgrey_cw310_hyperdebug
-    uses: ./.github/workflows/fpga.yml
+    uses: ./.github/workflows/hyper310-pr.yml
     if: ${{ github.event_name != 'merge_group' }}
     secrets: inherit
     with:
-      job_name: execute_test_rom_fpga_tests_cw310
       bitstream: chip_earlgrey_cw310_hyperdebug
-      board: cw310
-      interface: hyper310
-      tag_filters: cw310_test_rom
-
-  execute_rom_fpga_tests_cw310:
-    name: CW310 ROM Tests
-    needs: chip_earlgrey_cw310_hyperdebug
-    uses: ./.github/workflows/fpga.yml
-    if: ${{ github.event_name != 'merge_group' }}
-    secrets: inherit
-    with:
-      job_name: execute_rom_fpga_tests_cw310
-      bitstream: chip_earlgrey_cw310_hyperdebug
-      board: cw310
-      interface: hyper310
-      tag_filters: "cw310_rom_with_fake_keys,cw310_rom_with_real_keys,-manuf"
-      timeout: 90
-
-  execute_rom_ext_fpga_tests_cw310:
-    name: CW310 ROM_EXT Tests
-    needs: chip_earlgrey_cw310_hyperdebug
-    uses: ./.github/workflows/fpga.yml
-    if: ${{ github.event_name != 'merge_group' }}
-    secrets: inherit
-    with:
-      job_name: execute_rom_ext_fpga_tests_cw310
-      bitstream: chip_earlgrey_cw310_hyperdebug
-      board: cw310
-      interface: hyper310
-      tag_filters: cw310_rom_ext
-
-  execute_sival_fpga_tests_cw310:
-    name: CW310 SiVal Tests
-    needs: chip_earlgrey_cw310_hyperdebug
-    uses: ./.github/workflows/fpga.yml
-    if: ${{ github.event_name != 'merge_group' }}
-    secrets: inherit
-    with:
-      job_name: execute_sival_fpga_tests_cw310
-      bitstream: chip_earlgrey_cw310_hyperdebug
-      board: cw310
-      interface: hyper310
-      tag_filters: "cw310_sival,-manuf"
-
-  execute_sival_rom_ext_fpga_tests_cw310:
-    name: CW310 SiVal ROM_EXT Tests
-    needs: chip_earlgrey_cw310_hyperdebug
-    uses: ./.github/workflows/fpga.yml
-    if: ${{ github.event_name != 'merge_group' }}
-    secrets: inherit
-    with:
-      job_name: execute_sival_rom_ext_fpga_tests_cw310
-      bitstream: chip_earlgrey_cw310_hyperdebug
-      board: cw310
-      interface: hyper310
-      tag_filters: cw310_sival_rom_ext
-
-  execute_manuf_fpga_tests_cw310:
-    name: CW310 Manufacturing Tests
-    needs: chip_earlgrey_cw310_hyperdebug
-    uses: ./.github/workflows/fpga.yml
-    if: ${{ github.event_name != 'merge_group' }}
-    secrets: inherit
-    with:
-      job_name: execute_manuf_fpga_tests_cw310
-      bitstream: chip_earlgrey_cw310_hyperdebug
-      board: cw310
-      interface: hyper310
-      tag_filters: "manuf,-cw340"
 
   # CW340 FPGA jobs
-  execute_test_rom_fpga_tests_cw340:
-    name: CW340 Test ROM Tests
+  execute_tests_cw340:
+    name: CW340 Tests
     needs: chip_earlgrey_cw340
-    uses: ./.github/workflows/fpga.yml
+    uses: ./.github/workflows/cw340-pr.yml
     if: ${{ github.event_name != 'merge_group' }}
     secrets: inherit
     with:
-      job_name: execute_test_rom_fpga_tests_cw340
       bitstream: chip_earlgrey_cw340
-      board: cw340
-      interface: cw340
-      tag_filters: cw340_test_rom
-
-  execute_rom_fpga_tests_cw340:
-    name: CW340 ROM Tests
-    needs: chip_earlgrey_cw340
-    uses: ./.github/workflows/fpga.yml
-    if: ${{ github.event_name != 'merge_group' }}
-    secrets: inherit
-    with:
-      job_name: execute_rom_fpga_tests_cw340
-      bitstream: chip_earlgrey_cw340
-      board: cw340
-      interface: cw340
-      tag_filters: "cw340_rom_with_fake_keys,cw340_rom_with_real_keys,-manuf"
-
-  execute_rom_ext_fpga_tests_cw340:
-    name: CW340 ROM_EXT Tests
-    needs: chip_earlgrey_cw340
-    uses: ./.github/workflows/fpga.yml
-    if: ${{ github.event_name != 'merge_group' }}
-    secrets: inherit
-    with:
-      job_name: execute_rom_ext_fpga_tests_cw340
-      bitstream: chip_earlgrey_cw340
-      board: cw340
-      interface: cw340
-      tag_filters: cw340_rom_ext
-
-  execute_sival_fpga_tests_cw340:
-    name: CW340 SiVal Tests
-    needs: chip_earlgrey_cw340
-    uses: ./.github/workflows/fpga.yml
-    if: ${{ github.event_name != 'merge_group' }}
-    secrets: inherit
-    with:
-      job_name: execute_sival_fpga_tests_cw340
-      bitstream: chip_earlgrey_cw340
-      board: cw340
-      interface: cw340
-      tag_filters: "cw340_sival,-manuf"
-
-  execute_sival_rom_ext_fpga_tests_cw340:
-    name: CW340 SiVal ROM_EXT Tests
-    needs: chip_earlgrey_cw340
-    uses: ./.github/workflows/fpga.yml
-    if: ${{ github.event_name != 'merge_group' }}
-    secrets: inherit
-    with:
-      job_name: execute_sival_rom_ext_fpga_tests_cw340
-      bitstream: chip_earlgrey_cw340
-      board: cw340
-      interface: cw340
-      tag_filters: cw340_sival_rom_ext
-
-  execute_manuf_fpga_tests_cw340:
-    name: CW340 Manufacturing Tests
-    needs: chip_earlgrey_cw340
-    uses: ./.github/workflows/fpga.yml
-    if: ${{ github.event_name != 'merge_group' }}
-    secrets: inherit
-    with:
-      job_name: execute_manuf_fpga_tests_cw340
-      bitstream: chip_earlgrey_cw340
-      board: cw340
-      interface: cw340
-      tag_filters: "manuf,-cw310"
-
-  verify_fpga_jobs:
-    name: Verify FPGA jobs
-    runs-on: ubuntu-22.04
-    needs:
-      - execute_test_rom_fpga_tests_cw310
-      - execute_rom_fpga_tests_cw310
-      - execute_rom_ext_fpga_tests_cw310
-      - execute_sival_fpga_tests_cw310
-      - execute_sival_rom_ext_fpga_tests_cw310
-      - execute_manuf_fpga_tests_cw310
-      - execute_test_rom_fpga_tests_cw340
-      - execute_rom_fpga_tests_cw340
-      - execute_rom_ext_fpga_tests_cw340
-      - execute_sival_fpga_tests_cw340
-      - execute_sival_rom_ext_fpga_tests_cw340
-      - execute_manuf_fpga_tests_cw340
-    if: success() || failure()
-    steps:
-      - uses: actions/checkout@v4
-      - name: Download target pattern files
-        uses: actions/download-artifact@v4
-        with:
-          pattern: execute_*-targets
-          path: verify_fpga_jobs
-      - name: List all target pattern files
-        run: |
-          find verify_fpga_jobs
-      - name: Checking for duplicate test runs
-        run: |
-          # Find and display all duplicates:
-          # - for each target file and each line, print '<job_name> <target>'
-          # - then sort by the target name
-          # - then keep all duplicated lines
-          pattern_files=$(find verify_fpga_jobs -name target_pattern_file.txt)
-          awk '{ print(gensub(/.*\/(.+)\/target_pattern_file.txt/, "\\1", "g", FILENAME) " " $0) }' $pattern_files | sort -k2 | uniq -D -f1 > duplicates.txt
-          if [ -s duplicates.txt ]; then
-            echo "The following tests ran in two or more jobs:"
-            cat duplicates.txt
-            false
-          fi
-      - name: Checking for missing test runs
-        if: success() || failure()
-        run: |
-          # Find and display tests that did not run:
-          ./ci/scripts/run-bazel-test-query.sh all_fpga.txt fpga,-manual,-broken,-slow_test,-skip_in_ci //... @manufacturer_test_hooks//...
-          sort -o all_fpga.txt all_fpga.txt
-          pattern_files=$(find verify_fpga_jobs -name target_pattern_file.txt)
-          sort $pattern_files > all_run.txt
-          comm -23 all_fpga.txt all_run.txt > missing.txt
-          if [ -s missing.txt ]; then
-            echo "The following tests did not run in any job:"
-            cat missing.txt
-            false
-          fi
-
-  build_docker_containers:
-    name: Build Docker Containers
-    runs-on: ubuntu-22.04
-    needs: quick_lint
-    if: ${{ github.event_name != 'merge_group' }}
-    steps:
-      - uses: actions/checkout@v4
-      - name: Build Developer Utility Container
-        uses: docker/build-push-action@v6
-        env:
-          DOCKER_BUILD_SUMMARY: false
-          DOCKER_BUILD_RECORD_UPLOAD: false
-        with:
-          context: .
-          file: util/container/Dockerfile
-        continue-on-error: true
 
   sw_build_test:
     name: Build and test software
-    runs-on: ubuntu-22.04-vivado
+    runs-on:
+      group: zerorisc-none
     timeout-minutes: 120
     needs: quick_lint
     if: ${{ github.event_name != 'merge_group' }}
@@ -756,7 +434,8 @@ jobs:
 
   dj_sw_build_test:
     name: Build and test Darjeeling software
-    runs-on: ubuntu-22.04-vivado
+    runs-on:
+      group: zerorisc-none
     timeout-minutes: 120
     needs: quick_lint
     if: ${{ github.event_name != 'merge_group' }}
@@ -783,7 +462,8 @@ jobs:
 
   qemu_smoketest:
     name: QEMU smoketest
-    runs-on: ubuntu-22.04-vivado
+    runs-on:
+      group: zerorisc-none
     needs: quick_lint
     if: ${{ github.event_name != 'merge_group' }}
     steps:
@@ -800,7 +480,8 @@ jobs:
 
   qemu_local_dev_test:
     name: Test QEMU local development override
-    runs-on: ubuntu-22.04
+    runs-on:
+      group: zerorisc-none
     needs: quick_lint
     steps:
       - uses: actions/checkout@v4
@@ -821,7 +502,7 @@ jobs:
       - name: Check that overrides works
         run: |
           # The following packages are required to build QEMU.
-          sudo apt-get install -y ninja-build libpixman-1-dev libglib2.0-dev
+          sudo apt-get install -y ninja-build libpixman-1-dev libglib2.0-dev rustc
           # We need to symlink the BUILD file and create an empty REPO file.
           ln -s $PWD/opentitan/third_party/qemu/BUILD.qemu_opentitan.bazel qemu/BUILD.bazel
           touch qemu/REPO.bazel
@@ -837,20 +518,23 @@ jobs:
   # We would like to gate PR on quick lint and merge queue on bitstream caching.
   # GitHub requires a single job name to be used for branch protection rule, so we use 2 jobs with
   # conditional names so the non-skipped ones woud be called "Merge blocker".
-  merge_blocker_pr:
-    name: Merge blocker${{ github.event_name != 'pull_request' && ' (skipped)' || '' }}
-    runs-on: ubuntu-latest
-    needs: quick_lint
-    if: ${{ !cancelled() && github.event_name == 'pull_request' }}
-    steps:
-      - name: Complete
-        run: ${{ needs.quick_lint.result == 'success' }}
-
-  merge_blocker_merge:
-    name: Merge blocker${{ github.event_name != 'merge_group' && ' (skipped)' || '' }}
-    runs-on: ubuntu-latest
-    needs: cache_bitstreams
-    if: ${{ !cancelled() && github.event_name == 'merge_group' }}
-    steps:
-      - name: Complete
-        run: ${{ needs.cache_bitstreams.result == 'success' }}
+  #
+  # TODO: Enable these once `cache_bitstreams` is re-enabled.
+  #
+  #  merge_blocker_pr:
+  #    name: Merge blocker${{ github.event_name != 'pull_request' && ' (skipped)' || '' }}
+  #    runs-on: ubuntu-latest
+  #    needs: quick_lint
+  #    if: ${{ !cancelled() && github.event_name == 'pull_request' }}
+  #    steps:
+  #      - name: Complete
+  #        run: ${{ needs.quick_lint.result == 'success' }}
+  #
+  #  merge_blocker_merge:
+  #    name: Merge blocker${{ github.event_name != 'merge_group' && ' (skipped)' || '' }}
+  #    runs-on: ubuntu-latest
+  #    needs: cache_bitstreams
+  #    if: ${{ !cancelled() && github.event_name == 'merge_group' }}
+  #    steps:
+  #      - name: Complete
+  #        run: ${{ needs.cache_bitstreams.result == 'success' }}

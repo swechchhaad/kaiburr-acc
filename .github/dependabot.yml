@@ -15,7 +15,5 @@ updates:
       timezone: "America/Los_Angeles"
     commit-message:
       prefix: "[dependabot]"
-      reviewers:
-        - "lowRISC/ot-python-reviewers"
     reviewers:
-      - "timothytrippel"
+      - "qmn"

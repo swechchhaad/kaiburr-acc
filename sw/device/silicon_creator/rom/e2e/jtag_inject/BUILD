@@ -50,7 +50,11 @@ package(default_visibility = ["//visibility:public"])
             logging = "debug",
             needs_jtag = True,
             otp = ":img_{}_exec_disabled".format(lc_state),
-            tags = ["cw310_rom_with_fake_keys"],
+            tags = [
+                "cw310_rom_with_fake_keys",
+                # TODO: Remove when zeroRISC CI supports JTAG bootstrapping.
+                "skip_in_ci",
+            ],
             test_cmd = """
                 --elf={sram_program}
             """,
@@ -94,6 +98,8 @@ test_suite(
             logging = "debug",
             needs_jtag = True,
             otp = ":img_{}_exec_disabled".format(lc_state),
+            # TODO: Remove when zeroRISC CI supports JTAG bootstrapping.
+            tags = ["skip_in_ci"],
             test_cmd = " --elf={rom:elf}",
             test_harness = "//sw/host/tests/rom/e2e_openocd_debug_test:asm_interrupt_handler",
         ),
@@ -135,6 +141,8 @@ test_suite(
             logging = "debug",
             needs_jtag = True,
             otp = ":img_{}_exec_disabled".format(lc_state),
+            # TODO: Remove when zeroRISC CI supports JTAG bootstrapping.
+            tags = ["skip_in_ci"],
             test_cmd = " --elf={rom:elf}",
             test_harness = "//sw/host/tests/rom/e2e_openocd_debug_test:shutdown_execution_asm",
         ),

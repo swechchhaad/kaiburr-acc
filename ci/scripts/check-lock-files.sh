@@ -28,7 +28,7 @@ fi
 
 # Regenerate `Cargo.lock` files.
 # We use the Cargo from Bazel to ensure there are no resolver version differences.
-cargo=(bazel run @rules_rust//tools/upstream_wrapper:cargo --)
+cargo=(./bazelisk.sh run @rules_rust//tools/upstream_wrapper:cargo --)
 cargo_manifests=(
   third_party/rust/Cargo.toml
   third_party/tock/Cargo.toml

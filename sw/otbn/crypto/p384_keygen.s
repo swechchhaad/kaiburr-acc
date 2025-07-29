@@ -250,7 +250,7 @@ p384_generate_k:
 
   ret
 
-.section .data
+.section .bss
 
 .balign 32
 

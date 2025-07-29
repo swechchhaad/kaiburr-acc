@@ -209,7 +209,7 @@ p384_key_from_seed:
 
   ret
 
-.section .data
+.section .bss
 
 .balign 32
 

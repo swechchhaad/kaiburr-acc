@@ -77,7 +77,7 @@ status_t rsa_modexp_wait(size_t *num_words) {
     *num_words = kRsa4096NumWords;
   } else {
     // Wipe DMEM.
-    HARDENED_TRY(otbn_dmem_sec_wipe());
+    otbn_dmem_sec_wipe_nofail();
     // Unrecognized mode.
     return OTCRYPTO_FATAL_ERR;
   }

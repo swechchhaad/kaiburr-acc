@@ -206,7 +206,10 @@ opentitan_test(
     exec_env = EARLGREY_TEST_ENVS,
     fpga = fpga_params(
         timeout = "long",
-        tags = ["broken"],  # https://github.com/lowRISC/opentitan/issues/15788
+        tags = [
+            "broken",  # https://github.com/lowRISC/opentitan/issues/15788
+            "slow_test",
+        ],
         # [test-triage] test not constant time with icache enabled
     ),
     verilator = verilator_params(
@@ -755,6 +758,7 @@ opentitan_test(
     exec_env = CRYPTOTEST_EXEC_ENVS,
     fpga = fpga_params(
         timeout = "long",
+        tags = ["slow_test"],
     ),
     verilator = verilator_params(
         timeout = "eternal",
@@ -800,6 +804,7 @@ opentitan_test(
     exec_env = CRYPTOTEST_EXEC_ENVS,
     fpga = fpga_params(
         timeout = "long",
+        tags = ["slow_test"],
     ),
     silicon = silicon_params(
         timeout = "long",
@@ -844,6 +849,7 @@ opentitan_test(
     exec_env = CRYPTOTEST_EXEC_ENVS,
     fpga = fpga_params(
         timeout = "long",
+        tags = ["slow_test"],
     ),
     silicon = silicon_params(
         timeout = "long",

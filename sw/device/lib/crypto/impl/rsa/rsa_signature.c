@@ -1,3 +1,7 @@
+// Copyright zeroRISC Inc.
+// Licensed under the Apache License, Version 2.0, see LICENSE for details.
+// SPDX-License-Identifier: Apache-2.0
+
 // Copyright lowRISC contributors (OpenTitan project).
 // Licensed under the Apache License, Version 2.0, see LICENSE for details.
 // SPDX-License-Identifier: Apache-2.0
@@ -158,8 +162,9 @@ status_t rsa_signature_generate_2048_start(
                               encoded_message.data));
 
   // Start computing (encoded_message ^ d) mod n.
-  return rsa_modexp_consttime_2048_start(&encoded_message, &private_key->d,
-                                         &private_key->n);
+  return rsa_modexp_consttime_crt_2048_start(
+      &encoded_message, &private_key->d_p, &private_key->d_q, &private_key->i_q,
+      &private_key->p, &private_key->q);
 }
 
 status_t rsa_signature_generate_2048_finalize(rsa_2048_int_t *signature) {
@@ -226,8 +231,9 @@ status_t rsa_signature_generate_3072_start(
                               encoded_message.data));
 
   // Start computing (encoded_message ^ d) mod n.
-  return rsa_modexp_consttime_3072_start(&encoded_message, &private_key->d,
-                                         &private_key->n);
+  return rsa_modexp_consttime_crt_3072_start(
+      &encoded_message, &private_key->d_p, &private_key->d_q, &private_key->i_q,
+      &private_key->p, &private_key->q);
 }
 
 status_t rsa_signature_generate_3072_finalize(rsa_3072_int_t *signature) {
@@ -252,8 +258,9 @@ status_t rsa_signature_generate_4096_start(
                               encoded_message.data));
 
   // Start computing (encoded_message ^ d) mod n.
-  return rsa_modexp_consttime_4096_start(&encoded_message, &private_key->d,
-                                         &private_key->n);
+  return rsa_modexp_consttime_crt_4096_start(
+      &encoded_message, &private_key->d_p, &private_key->d_q, &private_key->i_q,
+      &private_key->p, &private_key->q);
 }
 
 status_t rsa_signature_generate_4096_finalize(rsa_4096_int_t *signature) {

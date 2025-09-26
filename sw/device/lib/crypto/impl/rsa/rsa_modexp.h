@@ -1,3 +1,7 @@
+// Copyright zeroRISC Inc.
+// Licensed under the Apache License, Version 2.0, see LICENSE for details.
+// SPDX-License-Identifier: Apache-2.0
+
 // Copyright lowRISC contributors (OpenTitan project).
 // Licensed under the Apache License, Version 2.0, see LICENSE for details.
 // SPDX-License-Identifier: Apache-2.0
@@ -48,6 +52,29 @@ status_t rsa_modexp_consttime_2048_start(const rsa_2048_int_t *base,
                                          const rsa_2048_int_t *modulus);
 
 /**
+ * Start a constant-time CRT RSA-2048 modular exponentiation.
+ *
+ * This construct is for secret exponents, and is faster than the non-CRT
+ * constant-time version.
+ *
+ * Returns an `OTCRYPTO_ASYNC_INCOMPLETE` error if OTBN is busy.
+ *
+ * @param base Exponentiation base.
+ * @param exp_p First CRT component of exponent to raise the base to.
+ * @param exp_q Seocnd CRT component of exponent to raise the base to.
+ * @param crt_coeff CRT coefficient for exponentiation (inverse of q mod p).
+ * @param modulus_p First cofactor of modulus for exponentiation.
+ * @param modulus_q Second cofactor of modulus for exponentiation.
+ * @return Status of the operation (OK or error).
+ */
+status_t rsa_modexp_consttime_crt_2048_start(const rsa_2048_int_t *base,
+                                             const rsa_2048_short_t *exp_p,
+                                             const rsa_2048_short_t *exp_q,
+                                             const rsa_2048_short_t *crt_coeff,
+                                             const rsa_2048_short_t *modulus_p,
+                                             const rsa_2048_short_t *modulus_q);
+
+/**
  * Start a variable-time RSA-2048 modular exponentiation.
  *
  * Do not use this construct with secret exponents; its timing depends on the
@@ -94,6 +121,29 @@ status_t rsa_modexp_consttime_3072_start(const rsa_3072_int_t *base,
                                          const rsa_3072_int_t *modulus);
 
 /**
+ * Start a constant-time CRT RSA-3072 modular exponentiation.
+ *
+ * This construct is for secret exponents, and is faster than the non-CRT
+ * constant-time version.
+ *
+ * Returns an `OTCRYPTO_ASYNC_INCOMPLETE` error if OTBN is busy.
+ *
+ * @param base Exponentiation base.
+ * @param exp_p First CRT component of exponent to raise the base to.
+ * @param exp_q Seocnd CRT component of exponent to raise the base to.
+ * @param crt_coeff CRT coefficient for exponentiation (inverse of q mod p).
+ * @param modulus_p First cofactor of modulus for exponentiation.
+ * @param modulus_q Second cofactor of modulus for exponentiation.
+ * @return Status of the operation (OK or error).
+ */
+status_t rsa_modexp_consttime_crt_3072_start(const rsa_3072_int_t *base,
+                                             const rsa_3072_short_t *exp_p,
+                                             const rsa_3072_short_t *exp_q,
+                                             const rsa_3072_short_t *crt_coeff,
+                                             const rsa_3072_short_t *modulus_p,
+                                             const rsa_3072_short_t *modulus_q);
+
+/**
  * Start a variable-time RSA-3072 modular exponentiation.
  *
  * Do not use this construct with secret exponents; its timing depends on the
@@ -138,6 +188,29 @@ status_t rsa_modexp_3072_finalize(rsa_3072_int_t *result);
 status_t rsa_modexp_consttime_4096_start(const rsa_4096_int_t *base,
                                          const rsa_4096_int_t *exp,
                                          const rsa_4096_int_t *modulus);
+
+/**
+ * Start a constant-time CRT RSA-4096 modular exponentiation.
+ *
+ * This construct is for secret exponents, and is faster than the non-CRT
+ * constant-time version.
+ *
+ * Returns an `OTCRYPTO_ASYNC_INCOMPLETE` error if OTBN is busy.
+ *
+ * @param base Exponentiation base.
+ * @param exp_p First CRT component of exponent to raise the base to.
+ * @param exp_q Seocnd CRT component of exponent to raise the base to.
+ * @param crt_coeff CRT coefficient for exponentiation (inverse of q mod p).
+ * @param modulus_p First cofactor of modulus for exponentiation.
+ * @param modulus_q Second cofactor of modulus for exponentiation.
+ * @return Status of the operation (OK or error).
+ */
+status_t rsa_modexp_consttime_crt_4096_start(const rsa_4096_int_t *base,
+                                             const rsa_4096_short_t *exp_p,
+                                             const rsa_4096_short_t *exp_q,
+                                             const rsa_4096_short_t *crt_coeff,
+                                             const rsa_4096_short_t *modulus_p,
+                                             const rsa_4096_short_t *modulus_q);
 
 /**
  * Start a variable-time RSA-4096 modular exponentiation.

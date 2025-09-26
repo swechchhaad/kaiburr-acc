@@ -20,33 +20,52 @@ static const otbn_app_t kOtbnAppRsaModexp = OTBN_APP_T_INIT(run_rsa_modexp);
 // Declare offsets for input and output buffers.
 OTBN_DECLARE_SYMBOL_ADDR(run_rsa_modexp, mode);   // Application mode.
 OTBN_DECLARE_SYMBOL_ADDR(run_rsa_modexp, n);      // Public modulus n.
+OTBN_DECLARE_SYMBOL_ADDR(run_rsa_modexp, p);      // Cofactor p.
+OTBN_DECLARE_SYMBOL_ADDR(run_rsa_modexp, q);      // Cofactor q.
 OTBN_DECLARE_SYMBOL_ADDR(run_rsa_modexp, d);      // Private exponent d.
+OTBN_DECLARE_SYMBOL_ADDR(run_rsa_modexp, d_p);    // CRT component d_p.
+OTBN_DECLARE_SYMBOL_ADDR(run_rsa_modexp, d_q);    // CRT component d_q.
+OTBN_DECLARE_SYMBOL_ADDR(run_rsa_modexp, i_q);    // CRT coefficient i_q.
 OTBN_DECLARE_SYMBOL_ADDR(run_rsa_modexp, inout);  // Input/output buffer.
 
 static const otbn_addr_t kOtbnVarRsaMode =
     OTBN_ADDR_T_INIT(run_rsa_modexp, mode);
 static const otbn_addr_t kOtbnVarRsaN = OTBN_ADDR_T_INIT(run_rsa_modexp, n);
+static const otbn_addr_t kOtbnVarRsaP = OTBN_ADDR_T_INIT(run_rsa_modexp, p);
+static const otbn_addr_t kOtbnVarRsaQ = OTBN_ADDR_T_INIT(run_rsa_modexp, q);
 static const otbn_addr_t kOtbnVarRsaD = OTBN_ADDR_T_INIT(run_rsa_modexp, d);
+static const otbn_addr_t kOtbnVarRsaDp = OTBN_ADDR_T_INIT(run_rsa_modexp, d_p);
+static const otbn_addr_t kOtbnVarRsaDq = OTBN_ADDR_T_INIT(run_rsa_modexp, d_q);
+static const otbn_addr_t kOtbnVarRsaIq = OTBN_ADDR_T_INIT(run_rsa_modexp, i_q);
 static const otbn_addr_t kOtbnVarRsaInOut =
     OTBN_ADDR_T_INIT(run_rsa_modexp, inout);
 
 // Declare mode constants.
 OTBN_DECLARE_SYMBOL_ADDR(run_rsa_modexp, MODE_RSA_2048_MODEXP);
+OTBN_DECLARE_SYMBOL_ADDR(run_rsa_modexp, MODE_RSA_2048_MODEXP_CRT);
 OTBN_DECLARE_SYMBOL_ADDR(run_rsa_modexp, MODE_RSA_2048_MODEXP_F4);
 OTBN_DECLARE_SYMBOL_ADDR(run_rsa_modexp, MODE_RSA_3072_MODEXP);
+OTBN_DECLARE_SYMBOL_ADDR(run_rsa_modexp, MODE_RSA_3072_MODEXP_CRT);
 OTBN_DECLARE_SYMBOL_ADDR(run_rsa_modexp, MODE_RSA_3072_MODEXP_F4);
 OTBN_DECLARE_SYMBOL_ADDR(run_rsa_modexp, MODE_RSA_4096_MODEXP);
+OTBN_DECLARE_SYMBOL_ADDR(run_rsa_modexp, MODE_RSA_4096_MODEXP_CRT);
 OTBN_DECLARE_SYMBOL_ADDR(run_rsa_modexp, MODE_RSA_4096_MODEXP_F4);
 static const uint32_t kMode2048Modexp =
     OTBN_ADDR_T_INIT(run_rsa_modexp, MODE_RSA_2048_MODEXP);
+static const uint32_t kMode2048ModexpCrt =
+    OTBN_ADDR_T_INIT(run_rsa_modexp, MODE_RSA_2048_MODEXP_CRT);
 static const uint32_t kMode2048ModexpF4 =
     OTBN_ADDR_T_INIT(run_rsa_modexp, MODE_RSA_2048_MODEXP_F4);
 static const uint32_t kMode3072Modexp =
     OTBN_ADDR_T_INIT(run_rsa_modexp, MODE_RSA_3072_MODEXP);
+static const uint32_t kMode3072ModexpCrt =
+    OTBN_ADDR_T_INIT(run_rsa_modexp, MODE_RSA_3072_MODEXP_CRT);
 static const uint32_t kMode3072ModexpF4 =
     OTBN_ADDR_T_INIT(run_rsa_modexp, MODE_RSA_3072_MODEXP_F4);
 static const uint32_t kMode4096Modexp =
     OTBN_ADDR_T_INIT(run_rsa_modexp, MODE_RSA_4096_MODEXP);
+static const uint32_t kMode4096ModexpCrt =
+    OTBN_ADDR_T_INIT(run_rsa_modexp, MODE_RSA_4096_MODEXP_CRT);
 static const uint32_t kMode4096ModexpF4 =
     OTBN_ADDR_T_INIT(run_rsa_modexp, MODE_RSA_4096_MODEXP_F4);
 
@@ -134,6 +153,35 @@ status_t rsa_modexp_consttime_2048_start(const rsa_2048_int_t *base,
   return OTCRYPTO_OK;
 }
 
+status_t rsa_modexp_consttime_crt_2048_start(
+    const rsa_2048_int_t *base, const rsa_2048_short_t *exp_p,
+    const rsa_2048_short_t *exp_q, const rsa_2048_short_t *crt_coeff,
+    const rsa_2048_short_t *modulus_p, const rsa_2048_short_t *modulus_q) {
+  // Load the OTBN app. Fails if OTBN is not idle.
+  HARDENED_TRY(otbn_load_app(kOtbnAppRsaModexp));
+
+  // Set mode.
+  uint32_t mode = kMode2048ModexpCrt;
+  HARDENED_TRY(otbn_dmem_write(1, &mode, kOtbnVarRsaMode));
+
+  // Set the base, the cofactors, the CRT components, and the CRT coefficient.
+  HARDENED_TRY(otbn_dmem_write(kRsa2048NumWords, base->data, kOtbnVarRsaInOut));
+  OTBN_WIPE_IF_ERROR(
+      otbn_dmem_write(kRsa2048NumWords / 2, modulus_p->data, kOtbnVarRsaP));
+  OTBN_WIPE_IF_ERROR(
+      otbn_dmem_write(kRsa2048NumWords / 2, modulus_q->data, kOtbnVarRsaQ));
+  OTBN_WIPE_IF_ERROR(
+      otbn_dmem_write(kRsa2048NumWords / 2, exp_p->data, kOtbnVarRsaDp));
+  OTBN_WIPE_IF_ERROR(
+      otbn_dmem_write(kRsa2048NumWords / 2, exp_q->data, kOtbnVarRsaDq));
+  OTBN_WIPE_IF_ERROR(
+      otbn_dmem_write(kRsa2048NumWords / 2, crt_coeff->data, kOtbnVarRsaIq));
+
+  // Start OTBN.
+  OTBN_WIPE_IF_ERROR(otbn_execute());
+  return OTCRYPTO_OK;
+}
+
 status_t rsa_modexp_vartime_2048_start(const rsa_2048_int_t *base,
                                        const uint32_t exp,
                                        const rsa_2048_int_t *modulus) {
@@ -186,6 +234,35 @@ status_t rsa_modexp_consttime_3072_start(const rsa_3072_int_t *base,
   return OTCRYPTO_OK;
 }
 
+status_t rsa_modexp_consttime_crt_3072_start(
+    const rsa_3072_int_t *base, const rsa_3072_short_t *exp_p,
+    const rsa_3072_short_t *exp_q, const rsa_3072_short_t *crt_coeff,
+    const rsa_3072_short_t *modulus_p, const rsa_3072_short_t *modulus_q) {
+  // Load the OTBN app. Fails if OTBN is not idle.
+  HARDENED_TRY(otbn_load_app(kOtbnAppRsaModexp));
+
+  // Set mode.
+  uint32_t mode = kMode3072ModexpCrt;
+  HARDENED_TRY(otbn_dmem_write(1, &mode, kOtbnVarRsaMode));
+
+  // Set the base, the cofactors, the CRT components, and the CRT coefficient.
+  HARDENED_TRY(otbn_dmem_write(kRsa3072NumWords, base->data, kOtbnVarRsaInOut));
+  OTBN_WIPE_IF_ERROR(
+      otbn_dmem_write(kRsa3072NumWords / 2, modulus_p->data, kOtbnVarRsaP));
+  OTBN_WIPE_IF_ERROR(
+      otbn_dmem_write(kRsa3072NumWords / 2, modulus_q->data, kOtbnVarRsaQ));
+  OTBN_WIPE_IF_ERROR(
+      otbn_dmem_write(kRsa3072NumWords / 2, exp_p->data, kOtbnVarRsaDp));
+  OTBN_WIPE_IF_ERROR(
+      otbn_dmem_write(kRsa3072NumWords / 2, exp_q->data, kOtbnVarRsaDq));
+  OTBN_WIPE_IF_ERROR(
+      otbn_dmem_write(kRsa3072NumWords / 2, crt_coeff->data, kOtbnVarRsaIq));
+
+  // Start OTBN.
+  OTBN_WIPE_IF_ERROR(otbn_execute());
+  return OTCRYPTO_OK;
+}
+
 status_t rsa_modexp_vartime_3072_start(const rsa_3072_int_t *base,
                                        const uint32_t exp,
                                        const rsa_3072_int_t *modulus) {
@@ -232,6 +309,35 @@ status_t rsa_modexp_consttime_4096_start(const rsa_4096_int_t *base,
   HARDENED_TRY(otbn_dmem_write(kRsa4096NumWords, modulus->data, kOtbnVarRsaN));
   OTBN_WIPE_IF_ERROR(
       otbn_dmem_write(kRsa4096NumWords, exp->data, kOtbnVarRsaD));
+
+  // Start OTBN.
+  OTBN_WIPE_IF_ERROR(otbn_execute());
+  return OTCRYPTO_OK;
+}
+
+status_t rsa_modexp_consttime_crt_4096_start(
+    const rsa_4096_int_t *base, const rsa_4096_short_t *exp_p,
+    const rsa_4096_short_t *exp_q, const rsa_4096_short_t *crt_coeff,
+    const rsa_4096_short_t *modulus_p, const rsa_4096_short_t *modulus_q) {
+  // Load the OTBN app. Fails if OTBN is not idle.
+  HARDENED_TRY(otbn_load_app(kOtbnAppRsaModexp));
+
+  // Set mode.
+  uint32_t mode = kMode4096ModexpCrt;
+  HARDENED_TRY(otbn_dmem_write(1, &mode, kOtbnVarRsaMode));
+
+  // Set the base, the cofactors, the CRT components, and the CRT coefficient.
+  HARDENED_TRY(otbn_dmem_write(kRsa4096NumWords, base->data, kOtbnVarRsaInOut));
+  OTBN_WIPE_IF_ERROR(
+      otbn_dmem_write(kRsa4096NumWords / 2, modulus_p->data, kOtbnVarRsaP));
+  OTBN_WIPE_IF_ERROR(
+      otbn_dmem_write(kRsa4096NumWords / 2, modulus_q->data, kOtbnVarRsaQ));
+  OTBN_WIPE_IF_ERROR(
+      otbn_dmem_write(kRsa4096NumWords / 2, exp_p->data, kOtbnVarRsaDp));
+  OTBN_WIPE_IF_ERROR(
+      otbn_dmem_write(kRsa4096NumWords / 2, exp_q->data, kOtbnVarRsaDq));
+  OTBN_WIPE_IF_ERROR(
+      otbn_dmem_write(kRsa4096NumWords / 2, crt_coeff->data, kOtbnVarRsaIq));
 
   // Start OTBN.
   OTBN_WIPE_IF_ERROR(otbn_execute());

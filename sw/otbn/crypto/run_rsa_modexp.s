@@ -37,21 +37,27 @@
  * as `li`. If support is added, we could use 32-bit values here instead of
  * 11-bit.
  */
-.equ MODE_RSA_2048_MODEXP, 0x76b
-.equ MODE_RSA_2048_MODEXP_F4, 0x565
-.equ MODE_RSA_3072_MODEXP, 0x378
-.equ MODE_RSA_3072_MODEXP_F4, 0x6d1
-.equ MODE_RSA_4096_MODEXP, 0x70b
-.equ MODE_RSA_4096_MODEXP_F4, 0x0ee
+.equ MODE_RSA_2048_MODEXP, 0x59c
+.equ MODE_RSA_2048_MODEXP_CRT, 0x6a5
+.equ MODE_RSA_2048_MODEXP_F4, 0x732
+.equ MODE_RSA_3072_MODEXP, 0x569
+.equ MODE_RSA_3072_MODEXP_CRT, 0x6ca
+.equ MODE_RSA_3072_MODEXP_F4, 0x457
+.equ MODE_RSA_4096_MODEXP, 0x1e6
+.equ MODE_RSA_4096_MODEXP_CRT, 0x3d1
+.equ MODE_RSA_4096_MODEXP_F4, 0x05d
 
 /**
  * Make the mode constants visible to Ibex.
  */
 .globl MODE_RSA_2048_MODEXP
+.globl MODE_RSA_2048_MODEXP_CRT
 .globl MODE_RSA_2048_MODEXP_F4
 .globl MODE_RSA_3072_MODEXP
+.globl MODE_RSA_3072_MODEXP_CRT
 .globl MODE_RSA_3072_MODEXP_F4
 .globl MODE_RSA_4096_MODEXP
+.globl MODE_RSA_4096_MODEXP_CRT
 .globl MODE_RSA_4096_MODEXP_F4
 
 .section .text.start
@@ -66,17 +72,26 @@ start:
   addi    x3, x0, MODE_RSA_2048_MODEXP
   beq     x2, x3, rsa_2048_modexp
 
+  addi    x3, x0, MODE_RSA_2048_MODEXP_CRT
+  beq     x2, x3, rsa_2048_modexp_crt
+
   addi    x3, x0, MODE_RSA_2048_MODEXP_F4
   beq     x2, x3, rsa_2048_modexp_f4
 
   addi    x3, x0, MODE_RSA_3072_MODEXP
   beq     x2, x3, rsa_3072_modexp
 
+  addi    x3, x0, MODE_RSA_3072_MODEXP_CRT
+  beq     x2, x3, rsa_3072_modexp_crt
+
   addi    x3, x0, MODE_RSA_3072_MODEXP_F4
   beq     x2, x3, rsa_3072_modexp_f4
 
   addi    x3, x0, MODE_RSA_4096_MODEXP
   beq     x2, x3, rsa_4096_modexp
+
+  addi    x3, x0, MODE_RSA_4096_MODEXP_CRT
+  beq     x2, x3, rsa_4096_modexp_crt
 
   addi    x3, x0, MODE_RSA_4096_MODEXP_F4
   beq     x2, x3, rsa_4096_modexp_f4
@@ -93,6 +108,13 @@ rsa_2048_modexp:
   /* Tail-call modexp. */
   jal     x0, do_modexp
 
+rsa_2048_modexp_crt:
+  /* Set the number of limbs for the modulus (2048 / 256 = 8). */
+  li      x30, 8
+
+  /* Tail-call modexp_crt. */
+  jal     x0, do_modexp_crt
+
 rsa_2048_modexp_f4:
   /* Set the number of limbs for the modulus (2048 / 256 = 8). */
   li      x30, 8
@@ -107,6 +129,13 @@ rsa_3072_modexp:
   /* Tail-call modexp. */
   jal     x0, do_modexp
 
+rsa_3072_modexp_crt:
+  /* Set the number of limbs for the modulus (3072 / 256 = 12). */
+  li      x30, 12
+
+  /* Tail-call modexp_crt. */
+  jal     x0, do_modexp_crt
+
 rsa_3072_modexp_f4:
   /* Set the number of limbs for the modulus (3072 / 256 = 12). */
   li      x30, 12
@@ -120,6 +149,13 @@ rsa_4096_modexp:
 
   /* Tail-call modexp. */
   jal     x0, do_modexp
+
+rsa_4096_modexp_crt:
+  /* Set the number of limbs for the modulus (4096 / 256 = 16). */
+  li      x30, 16
+
+  /* Tail-call modexp_crt. */
+  jal     x0, do_modexp_crt
 
 rsa_4096_modexp_f4:
   /* Set the number of limbs for the modulus (4096 / 256 = 16). */
@@ -155,6 +191,45 @@ do_modexp:
   la       x15, d
   la       x2, work_buf
   jal      x1, modexp
+
+  /* Copy final result to the output buffer. */
+  la    x3, work_buf
+  la    x4, inout
+  loop  x30, 2
+    bn.lid x0, 0(x3++)
+    bn.sid x0, 0(x4++)
+
+  ecall
+
+/**
+ * Precompute constants and call CRT modular exponentiation.
+ *
+ * Calls `ecall` when done; should be tail-called by mode-specific routines
+ * after the number of limbs is set.
+ *
+ * @param[in]          x30: number of limbs for modulus
+ * @param[in]      dmem[n]: n, modulus
+ * @param[in]      dmem[d]: d, exponent
+ * @param[in]  dmem[inout]: a, base for exponentiation
+ * @param[out] dmem[inout]: result, a^d mod n
+ */
+do_modexp_crt:
+  /* Load pointers to modulus and Montgomery constant buffers. */
+  la    x17, m0d
+  la    x18, RR
+  la    x27, p
+  la    x28, q
+
+  /* Run exponentiation.
+       dmem[work_buf] = dmem[inout]^dmem[d] mod dmem[n] */
+  la       x2, work_buf
+  la       x3, n
+  la       x4, d
+  la       x23, inout
+  la       x25, d_p
+  la       x26, d_q
+  la       x29, i_q
+  jal      x1, modexp_crt
 
   /* Copy final result to the output buffer. */
   la    x3, work_buf

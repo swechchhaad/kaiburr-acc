@@ -1,3 +1,7 @@
+// Copyright zeroRISC Inc.
+// Licensed under the Apache License, Version 2.0, see LICENSE for details.
+// SPDX-License-Identifier: Apache-2.0
+
 // Copyright lowRISC contributors (OpenTitan project).
 // Licensed under the Apache License, Version 2.0, see LICENSE for details.
 // SPDX-License-Identifier: Apache-2.0
@@ -39,8 +43,9 @@ status_t rsa_encrypt_2048_finalize(rsa_2048_int_t *ciphertext) {
 status_t rsa_decrypt_2048_start(const rsa_2048_private_key_t *private_key,
                                 const rsa_2048_int_t *ciphertext) {
   // Start computing (ciphertext ^ d) mod n.
-  return rsa_modexp_consttime_2048_start(ciphertext, &private_key->d,
-                                         &private_key->n);
+  return rsa_modexp_consttime_crt_2048_start(
+      ciphertext, &private_key->d_p, &private_key->d_q, &private_key->i_q,
+      &private_key->p, &private_key->q);
 }
 
 status_t rsa_decrypt_finalize(const otcrypto_hash_mode_t hash_mode,
@@ -128,8 +133,9 @@ status_t rsa_encrypt_3072_finalize(rsa_3072_int_t *ciphertext) {
 status_t rsa_decrypt_3072_start(const rsa_3072_private_key_t *private_key,
                                 const rsa_3072_int_t *ciphertext) {
   // Start computing (ciphertext ^ d) mod n.
-  return rsa_modexp_consttime_3072_start(ciphertext, &private_key->d,
-                                         &private_key->n);
+  return rsa_modexp_consttime_crt_3072_start(
+      ciphertext, &private_key->d_p, &private_key->d_q, &private_key->i_q,
+      &private_key->p, &private_key->q);
 }
 
 status_t rsa_encrypt_4096_start(const rsa_4096_public_key_t *public_key,
@@ -156,6 +162,7 @@ status_t rsa_encrypt_4096_finalize(rsa_4096_int_t *ciphertext) {
 status_t rsa_decrypt_4096_start(const rsa_4096_private_key_t *private_key,
                                 const rsa_4096_int_t *ciphertext) {
   // Start computing (ciphertext ^ d) mod n.
-  return rsa_modexp_consttime_4096_start(ciphertext, &private_key->d,
-                                         &private_key->n);
+  return rsa_modexp_consttime_crt_4096_start(
+      ciphertext, &private_key->d_p, &private_key->d_q, &private_key->i_q,
+      &private_key->p, &private_key->q);
 }

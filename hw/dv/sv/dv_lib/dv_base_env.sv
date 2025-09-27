@@ -34,11 +34,15 @@ class dv_base_env #(type CFG_T               = dv_base_env_cfg,
         if (ral_name == default_ral_name) if_name = "clk_rst_vif";
         else                              if_name = {"clk_rst_vif_", ral_name};
 
+        `uvm_info(`gfn, {"ral_name: ", ral_name, " if_name:", if_name}, UVM_LOW)
+
         // Reset Domain objects are created here rather than in the config due to the fact we do
         // not know how many clocking interfaces are used in the base config level.
         // We dynamically create the object only for the number of domains we need to build in the
         // testbench.
         cfg.reset_domains[ral_name] = dv_rst_domain::type_id::create({"reset_domain_", ral_name});
+
+        // TODO: Interfaces should only be accessible to a driver or a monitor.
         if (!uvm_config_db#(virtual clk_rst_if)::get(this, "", if_name,
                                                      cfg.reset_domains[ral_name].clk_rst_vif)) begin
           `uvm_fatal(`gfn, $sformatf("failed to get clk_rst_if for %0s from uvm_config_db",

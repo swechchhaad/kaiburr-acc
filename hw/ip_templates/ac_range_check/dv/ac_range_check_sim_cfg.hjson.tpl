@@ -60,6 +60,11 @@
       reseed: 20
     }
     {
+      name: ac_range_check_rst_safe_smoke
+      uvm_test_seq: ac_range_check_rst_safe_smoke_vseq
+      reseed: 20
+    }
+    {
       name: ac_range_check_bypass
       uvm_test_seq: ac_range_check_bypass_vseq
       reseed: 1
@@ -80,6 +85,7 @@
       tests: ["ac_range_check_smoke",
               "ac_range_check_smoke_racl",
               "ac_range_check_smoke_high_threshold"
+              "ac_range_check_rst_safe_smoke"
              ]
     }
     {
@@ -87,6 +93,7 @@
       tests: ["ac_range_check_smoke",
               "ac_range_check_smoke_racl",
               "ac_range_check_smoke_high_threshold",
+              "ac_range_check_rst_safe_smoke"
               "ac_range_check_bypass",
               "ac_range_check_lock_range"
              ]

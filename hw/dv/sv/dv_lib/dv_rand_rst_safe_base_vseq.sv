@@ -7,8 +7,11 @@ class dv_rand_rst_safe_base_vseq #(
                      type RAL_T               = dv_base_reg_block,
                      type CFG_T               = dv_base_env_cfg,
                      type COV_T               = dv_base_env_cov,
-                     type VIRTUAL_SEQUENCER_T = dv_base_virtual_sequencer) extends uvm_sequence;
-  `uvm_object_param_utils(dv_rand_rst_safe_base_vseq #(RAL_T, CFG_T, COV_T, VIRTUAL_SEQUENCER_T))
+                     type VIRTUAL_SEQUENCER_T = dv_base_virtual_sequencer,
+                     type TEST_PARAMS_T       = dv_test_seq_parameters,
+                     type CONFIG_PARAMS_T     = dv_config_parameters) extends uvm_sequence;
+  `uvm_object_param_utils(dv_rand_rst_safe_base_vseq #(RAL_T, CFG_T, COV_T, VIRTUAL_SEQUENCER_T,
+                                                       TEST_PARAMS_T, CONFIG_PARAMS_T))
   `uvm_declare_p_sequencer(VIRTUAL_SEQUENCER_T)
 
   CFG_T   cfg;
@@ -17,7 +20,8 @@ class dv_rand_rst_safe_base_vseq #(
 
   bit   in_reset = 1;
 
-  dv_test_seq_params  test_params;
+  TEST_PARAMS_T   test_params;
+  CONFIG_PARAMS_T config_params;
 
   `uvm_object_new
 
@@ -33,8 +37,11 @@ class dv_rand_rst_safe_base_vseq #(
   extern virtual task body();
 
   extern task monitor_reset();
-  extern virtual task reset_trigger_thread (const ref dv_test_seq_params  test_params);
-  extern virtual task main_thread (const ref dv_test_seq_params  test_params);
+  extern virtual task reset_trigger_thread();
+  extern virtual task main_thread();
+
+  // TODO: Need to understand what CIP lib does with sequences with reset
+  extern virtual task post_apply_reset(string reset_kind = "HARD");
 
   extern virtual function void handle_reset_assertion ();
 endclass
@@ -43,6 +50,12 @@ endclass
 task dv_rand_rst_safe_base_vseq::dut_init();
   // Derived class will need to provide an implementation for DUT initialization once reset is
   // deasserted
+  `uvm_fatal (get_name(), "Derived classes need to provide an implementation")
+endtask
+
+// This is called after apply_reset in this class and after apply_resets_concurrently
+// in cip_base_vseq::run_seq_with_rand_reset_vseq.
+task dv_rand_rst_safe_base_vseq::post_apply_reset(string reset_kind = "HARD");
 endtask
 
 
@@ -68,12 +81,11 @@ endtask
 
 task dv_rand_rst_safe_base_vseq::post_start();
   super.post_start();
-  if (do_dut_shutdown) dut_shutdown();
+  if (test_params.do_dut_shutdown) dut_shutdown();
 endtask
 
-// dut shutdown - this is called in post_start if do_dut_shutdown bit is set
-task dut_shutdown();
-  csr_utils_pkg::wait_no_outstanding_access();
+// dut shutdown - this is called in post_start if test_params.do_dut_shutdown bit is set
+task dv_rand_rst_safe_base_vseq::dut_shutdown();
 endtask
 
 // 'body()' task of the base sequence implements logic to make the base virtual sequence reset safe.
@@ -88,7 +100,14 @@ task dv_rand_rst_safe_base_vseq::body();
   process             main_thread_id ;
 
   `uvm_info (get_name(), "dv_rand_rst_safe_base_vseq::body() - Starting", UVM_LOW)
-  test_params = dv_test_seq_params::type_id::create("test_seq_parameters");
+  test_params   = TEST_PARAMS_T::type_id::create("test_seq_parameters");
+  config_params = CONFIG_PARAMS_T::type_id::create("config_parameters");
+
+  `uvm_info (get_name(), $sformatf("body() - test_params type_name:%s",
+                                    test_params.get_type_name()), UVM_LOW)
+  `uvm_info (get_name(), $sformatf("body() - config_params type_name:%s",
+                                    config_params.get_type_name()), UVM_LOW)
+
   assert (test_params.randomize())
   else begin
     `uvm_fatal (get_name(), "DV Test Parameters Randomisation Failed")
@@ -99,6 +118,10 @@ task dv_rand_rst_safe_base_vseq::body();
   // These parameters need to be stable for the rest of the test sequence execution
   test_params.constraint_mode(0);
 
+  `uvm_info (get_name(), $sformatf("body() - test_params.reset_testing:%s",
+                                    test_params.reset_testing.name()), UVM_LOW)
+  `uvm_info (get_name(), $sformatf("test_params.num_reset_loops:%d",
+                                     test_params.num_reset_loops), UVM_LOW)
 
   // 'monitor_reset()' task helps the sequence syncronise with 'reset' trigger. Synchronisation is
   // done only when reset is observed at the signal level.
@@ -119,9 +142,11 @@ task dv_rand_rst_safe_base_vseq::body();
     `uvm_info (get_name(), $sformatf("test_params.num_reset_loops:%d",
                                      test_params.num_reset_loops), UVM_LOW)
 
-    // Wait until reset has been released. The parent class is
+    // Wait until reset has been released. monitor_reset() task should set this
     wait (in_reset == 0);
     if (test_params.do_dut_init) dut_init();
+
+    `uvm_info (get_name(), "Reset Loop: Starting Forks", UVM_LOW)
 
     // At this point the design should be out of reset and should be ready to
     // accept any programming command.
@@ -130,11 +155,10 @@ task dv_rand_rst_safe_base_vseq::body();
     // 1 - Reset Thread
     // 2 - Main Thread
     //
-    // These are concurrent threads as we would like to perform a reset at a
-    // random time when the DUT is operational. If reset testing is enabled
-    // the reset thread should complete before the main thread else it is a
-    // testbench error. Toplevel constraints part of dv_test_seq_params is used
-    // control the timing of the reset thread.
+    // These are concurrent threads as we would like to perform a reset at a random time when the
+    // DUT is operational. If reset testing is enabled the reset thread should complete before the
+    // main thread else it is a testbench error. Toplevel constraints part of dv_test_seq_parameters
+    // is used control the timing of the reset thread.
     //
     // The reset thread encapsulates the the reset sequence that is customised
     // to run the clock reset sequencer and the main thread is used for
@@ -150,8 +174,8 @@ task dv_rand_rst_safe_base_vseq::body();
         // Do Reset Testing if reset testing is enabled & there are more than 1
         // primary loops of the test looking to be executed.
         if (   test_params.num_reset_loops != 0
-            && test_params.reset_testing == dv_test_seq_params::ENABLE) begin
-          reset_trigger_thread (test_params);
+            && test_params.reset_testing == dv_test_seq_parameters::ENABLE) begin
+          reset_trigger_thread ();
 
           // At this point the feedback from 'monitor_reset()' is confirmed 'reset' is asserted.
           // Once confirmed, the 'forked_reset_thread' is complete and can finish
@@ -161,7 +185,7 @@ task dv_rand_rst_safe_base_vseq::body();
       begin : forked_main_thread
         // Capture Process handle for the spawned process
         main_thread_id = process::self();
-        main_thread (test_params);
+        main_thread ();
       end
     join_none
 
@@ -178,7 +202,7 @@ task dv_rand_rst_safe_base_vseq::body();
     // if that is not the case, re-adjust reset timing on the 'reset_seq' to ensure reset is
       // triggered when 'main_thread' is operational.
     if (   test_params.num_reset_loops != 0
-        && test_params.reset_testing == dv_test_seq_params::ENABLE) begin
+        && test_params.reset_testing == dv_test_seq_parameters::ENABLE) begin
       // If reset testing is enabled, the DUT should be in reset at this point.
       // So it is safe to terminate main thread and and return the sequencers to
       // idle state.
@@ -211,7 +235,7 @@ task dv_rand_rst_safe_base_vseq::body();
 endtask : body
 
 
-task dv_rand_rst_safe_base_vseq::reset_trigger_thread(const ref dv_test_seq_params  test_params);
+task dv_rand_rst_safe_base_vseq::reset_trigger_thread();
   `uvm_fatal (get_name(), "Derived sequence needs to provide an implementation")
 
   // Any TB that implements the reset safety will need the below lines implemented in the derived
@@ -233,7 +257,7 @@ task dv_rand_rst_safe_base_vseq::reset_trigger_thread(const ref dv_test_seq_para
 endtask : reset_trigger_thread
 
 
-task dv_rand_rst_safe_base_vseq::main_thread(const ref dv_test_seq_params  test_params);
+task dv_rand_rst_safe_base_vseq::main_thread();
   // This is the task for main execution focus of the virtual sequence i.e. the transaction
   // generator.
   // In this thread other interface specific sequences can be triggered and controlled.
@@ -245,9 +269,15 @@ task dv_rand_rst_safe_base_vseq::monitor_reset();
   // This task is primarily the feedback to the vseq when reset is triggered during normal operation
   // of the vseq.The vseq then takes actions via the 'handle_resest_assertion()'
 
+  `uvm_info (get_name(), "Waiting for POR Release", UVM_LOW)
+
+
   // The first reset is POR. Wait until a full reset cycle is observed
   cfg.reset_domain.wait_reset_assert();
   cfg.reset_domain.wait_reset_deassert();
+
+  `uvm_info (get_name(), "POR Released - Starting Reset Monitoring", UVM_LOW)
+  in_reset = 0;
 
   fork
     begin : reset_monitor_thread

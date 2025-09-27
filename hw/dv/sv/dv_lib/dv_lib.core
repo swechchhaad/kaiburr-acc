@@ -38,6 +38,7 @@ filesets:
       - dv_base_env.sv: {is_include_file: true}
       - dv_base_vseq.sv: {is_include_file: true}
       - dv_test_seq_parameters.sv: {is_include_file: true}
+      - dv_config_parameters.sv: {is_include_file: true}
       - dv_rand_rst_safe_base_vseq.sv: {is_include_file: true}
       - dv_base_test.sv: {is_include_file: true}
     file_type: systemVerilogSource

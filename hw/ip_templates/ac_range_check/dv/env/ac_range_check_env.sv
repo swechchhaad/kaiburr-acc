@@ -3,7 +3,7 @@
 // Licensed under the Apache License, Version 2.0, see LICENSE for details.
 // SPDX-License-Identifier: Apache-2.0
 
-class ac_range_check_env extends cip_base_env #(
+class ac_range_check_env extends cip_rst_safe_base_env #(
     .CFG_T              (ac_range_check_env_cfg),
     .COV_T              (ac_range_check_env_cov),
     .VIRTUAL_SEQUENCER_T(ac_range_check_virtual_sequencer),
@@ -35,11 +35,13 @@ function void ac_range_check_env::build_phase(uvm_phase phase);
   tl_unfilt_agt = tl_agent::type_id::create("tl_unfilt_agt", this);
   uvm_config_db#(tl_agent_cfg)::set(this, "tl_unfilt_agt*", "cfg", cfg.tl_unfilt_agt_cfg);
   cfg.tl_unfilt_agt_cfg.en_cov = cfg.en_cov;
+  cfg.tl_unfilt_agt_cfg.reset_domain = cfg.reset_domain;
 
   // Create Fltered TL agent
   tl_filt_agt = tl_agent::type_id::create("tl_filt_agt", this);
   uvm_config_db#(tl_agent_cfg)::set(this, "tl_filt_agt*", "cfg", cfg.tl_filt_agt_cfg);
   cfg.tl_filt_agt_cfg.en_cov = cfg.en_cov;
+  cfg.tl_filt_agt_cfg.reset_domain = cfg.reset_domain;
 
   // clk_rst_agent establishes the default reset_domain that all other agents should use in the
   // testbench. If there are more than one reset domains for the block/toplevel multiple clock
@@ -78,4 +80,6 @@ function void ac_range_check_env::connect_phase(uvm_phase phase);
   if (cfg.is_active && cfg.tl_filt_agt_cfg.is_active) begin
     virtual_sequencer.tl_filt_sqr = tl_filt_agt.sequencer;
   end
+
+  virtual_sequencer.clk_rst_sqr = clk_rst_agt.sequencer;
 endfunction : connect_phase

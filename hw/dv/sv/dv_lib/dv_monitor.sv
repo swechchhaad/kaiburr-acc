@@ -31,7 +31,7 @@ endfunction
 // performs callbacks to registered clients at the same time.
 function void  dv_monitor::notify(ITEM_T trans);
   // Indicate the current transaction being driven.
-  `uvm_info(get_name(), "dv_monitor::notify() - Called", UVM_MEDIUM);
+  `uvm_info(get_name(), "dv_monitor::notify() - Called", UVM_HIGH);
   `uvm_do_callbacks(dv_monitor#(ITEM_T), dv_callback#(ITEM_T), indicated(trans))
 
   analysis_port.write(trans);

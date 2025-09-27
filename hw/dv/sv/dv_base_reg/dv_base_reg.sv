@@ -1,4 +1,5 @@
 // Copyright lowRISC contributors (OpenTitan project).
+// Copyright zeroRISC Inc.
 // Licensed under the Apache License, Version 2.0, see LICENSE for details.
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -463,6 +464,11 @@ class dv_base_reg extends uvm_reg;
       // operation to complete if a reset happens in the middle of one.
       atomic_en_shadow_wr = new(1);
     end
+
+    // If reset is seen in the middle of read / write / predict which protected by access_lock
+    // post reset lock up is observed
+    access_lock = null;
+    access_lock = new(1);
   endfunction
 
   function void add_update_err_alert(string name);

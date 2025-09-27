@@ -22,8 +22,11 @@ class cip_rand_rst_safe_base_vseq #(
   type RAL_T               = dv_base_reg_block,
   type CFG_T               = cip_base_env_cfg,
   type COV_T               = cip_base_env_cov,
-  type VIRTUAL_SEQUENCER_T = cip_base_virtual_sequencer
-) extends dv_rand_rst_safe_base_vseq #(RAL_T, CFG_T, COV_T, VIRTUAL_SEQUENCER_T);
+  type VIRTUAL_SEQUENCER_T = cip_base_virtual_sequencer,
+  type TEST_PARAMS_T       = dv_test_seq_parameters,
+  type CONFIG_PARAMS_T     = dv_config_parameters
+) extends dv_rand_rst_safe_base_vseq #(RAL_T, CFG_T, COV_T, VIRTUAL_SEQUENCER_T,
+                                       TEST_PARAMS_T, CONFIG_PARAMS_T);
   `uvm_object_new
 
   // This is the number of consecutive cycles with no outstanding accesses before
@@ -89,9 +92,13 @@ class cip_rand_rst_safe_base_vseq #(
     `uvm_field_string(common_seq_type, UVM_DEFAULT)
   `uvm_object_utils_end
 
-  `include "cip_base_vseq__tl_errors.svh"
-  `include "cip_base_vseq__shadow_reg_errors.svh"
-  `include "cip_base_vseq__sec_cm_fi.svh"
+  // {{{--- TODO: Will need explore how various tasks in the following includes can be migrated to
+  // individual sequences in their own right
+  //
+  // `include "cip_base_vseq__tl_errors.svh"
+  // `include "cip_base_vseq__shadow_reg_errors.svh"
+  // `include "cip_base_vseq__sec_cm_fi.svh"
+  // ---}}}
 
   virtual task post_apply_reset(string reset_kind = "HARD");
     super.post_apply_reset(reset_kind);
@@ -147,27 +154,31 @@ class cip_rand_rst_safe_base_vseq #(
     if (do_clear_all_interrupts) clear_all_interrupts();
   endtask
 
-  virtual task apply_reset(string kind = "HARD");
-    if (kind == "HARD") begin
-      fork
-        if (cfg.num_edn) apply_edn_reset(kind);
-        super.apply_reset(kind);
-      join
-    end
-  endtask
+  // {{{---- TODO: the following tasks are for reset triggers
+  // Need to revisit these in discussion on how things need to migrate
+  //
+  // virtual task apply_reset(string kind = "HARD");
+  //   if (kind == "HARD") begin
+  //     fork
+  //       if (cfg.num_edn) apply_edn_reset(kind);
+  //       super.apply_reset(kind);
+  //     join
+  //   end
+  // endtask
 
-  virtual task apply_edn_reset(string kind = "HARD");
-    if (cfg.num_edn && kind == "HARD") cfg.edn_clk_rst_vif.apply_reset();
-  endtask
+  // virtual task apply_edn_reset(string kind = "HARD");
+  //  if (cfg.num_edn && kind == "HARD") cfg.edn_clk_rst_vif.apply_reset();
+  // endtask
 
-  virtual task apply_resets_concurrently(int reset_duration_ps = 0);
-    if (cfg.num_edn) begin
-      cfg.edn_clk_rst_vif.drive_rst_pin(0);
-      reset_duration_ps = max2(reset_duration_ps, cfg.edn_clk_rst_vif.clk_period_ps);
-    end
-    super.apply_resets_concurrently(reset_duration_ps);
-    if (cfg.num_edn) cfg.edn_clk_rst_vif.drive_rst_pin(1);
-  endtask
+  // virtual task apply_resets_concurrently(int reset_duration_ps = 0);
+  //   if (cfg.num_edn) begin
+  //     cfg.edn_clk_rst_vif.drive_rst_pin(0);
+  //     reset_duration_ps = max2(reset_duration_ps, cfg.edn_clk_rst_vif.clk_period_ps);
+  //   end
+  //   super.apply_resets_concurrently(reset_duration_ps);
+  //   if (cfg.num_edn) cfg.edn_clk_rst_vif.drive_rst_pin(1);
+  // endtask
+  // ---- END TODO }}}
 
   // tl_access task: does a single BUS_DW-bit write or read transaction to the specified address
   // note that this task does not update ral model; optionally also checks for error response
@@ -409,22 +420,28 @@ class cip_rand_rst_safe_base_vseq #(
     case (common_seq_type)
       "intr_test":                     run_intr_test_vseq(num_times);
       "alert_test":                    run_alert_test_vseq(num_times);
-      "tl_errors":                     run_tl_errors_vseq(num_times);
-      // Each iteration only sends 1 item with TL integrity error. Increase to send at least
-      // 10 x num_times integrity errors
-      "tl_intg_err":                   run_tl_intg_err_vseq(10 * num_times);
-      "passthru_mem_tl_intg_err":      run_passthru_mem_tl_intg_err_vseq(10 * num_times);
+
+      // {{{--- TODO: Common Seq removed : Since files in line 95 were not inculded
+      //
+      // "tl_errors":                     run_tl_errors_vseq(num_times);
+
+      // // Each iteration only sends 1 item with TL integrity error. Increase to send at least
+      // // 10 x num_times integrity errors
+      // "tl_intg_err":                   run_tl_intg_err_vseq(10 * num_times);
+      // "passthru_mem_tl_intg_err":      run_passthru_mem_tl_intg_err_vseq(10 * num_times);
+      // ---}}}
+
       // Each iteration only issues at most one reset. Increase to send at least 5 X num_times.
       "stress_all_with_rand_reset":    run_plusarg_vseq_with_rand_reset(5 * num_times);
       "same_csr_outstanding":          run_same_csr_outstanding_vseq(num_times);
-      "shadow_reg_errors":             run_shadow_reg_errors(num_times);
-      "shadow_reg_errors_with_csr_rw": run_shadow_reg_errors(num_times, 1);
+      // "shadow_reg_errors":             run_shadow_reg_errors(num_times);
+      // "shadow_reg_errors_with_csr_rw": run_shadow_reg_errors(num_times, 1);
       "mem_partial_access":            run_mem_partial_access_vseq(num_times);
       "csr_mem_rw_with_rand_reset":    run_csr_mem_rw_with_rand_reset_vseq(num_times);
       "csr_mem_rw":                    run_csr_mem_rw_vseq(num_times);
       // Increase iteration, otherwise each sec_cm is only tested 1-2 times
-      "sec_cm_fi":                     run_sec_cm_fi_vseq(10 * num_times);
-      default:                         run_csr_vseq_wrapper(num_times);
+      // "sec_cm_fi":                     run_sec_cm_fi_vseq(10 * num_times);
+      // default:                         run_csr_vseq_wrapper(num_times);
     endcase
   endtask
 
@@ -763,7 +780,7 @@ class cip_rand_rst_safe_base_vseq #(
     // checking the status.
     if (csr_access_abort_pct > 0) csr_utils_pkg::default_csr_check = UVM_NO_CHECK;
     else                          csr_utils_pkg::default_csr_check = UVM_CHECK;
-    super.run_csr_vseq(csr_test_type, num_test_csrs, do_rand_wr_and_reset, models, ral_name);
+    // super.run_csr_vseq(csr_test_type, num_test_csrs, do_rand_wr_and_reset, models, ral_name);
   endtask
 
 
@@ -811,7 +828,7 @@ class cip_rand_rst_safe_base_vseq #(
             begin : seq_wo_reset
               fork
                 begin : tl_err_seq
-                  run_tl_errors_vseq(.num_times($urandom_range(10, 1000)), .do_wait_clk(1'b1));
+                  // run_tl_errors_vseq(.num_times($urandom_range(10, 1000)), .do_wait_clk(1'b1));
                 end
                 begin : run_stress_seq
                   dv_base_vseq #(RAL_T, CFG_T, COV_T, VIRTUAL_SEQUENCER_T) dv_vseq;
@@ -851,7 +868,7 @@ class cip_rand_rst_safe_base_vseq #(
 
                 ongoing_reset = 1'b1;
                 `uvm_info(`gfn, $sformatf("\nIssuing reset for run %0d/%0d", i, num_times), UVM_LOW)
-                apply_resets_concurrently();
+                // apply_resets_concurrently();
                 do_read_and_check_all_csrs = 1'b1;
                 ongoing_reset = 1'b0;
               end

@@ -61,6 +61,9 @@ task dv_rst_safe_base_monitor::run_phase(uvm_phase phase);
   cfg.reset_domain.wait_reset_deassert();
 
   forever begin
+    reset_thread_id         = null;
+    collect_trans_thread_id = null;
+
     // At this point reset is released and the monitor is the default state. We now need to monitor
     // reset and the interface signals conurrently. The interface monitor thread
     // Process threading is used instead of isolation forks as it is cleaner and allows for fine

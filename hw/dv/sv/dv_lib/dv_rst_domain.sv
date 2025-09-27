@@ -28,6 +28,10 @@ class dv_rst_domain extends uvm_object;
     end
   endtask
 
+  virtual function bit is_driving_reset();
+    return clk_rst_vif.drive_rst_n;
+  endfunction
+
   `uvm_object_utils_begin(dv_rst_domain)
   `uvm_object_utils_end
 endclass

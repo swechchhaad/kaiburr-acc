@@ -1,4 +1,5 @@
 // Copyright lowRISC contributors (OpenTitan project).
+// Copyright zeroRISC Inc.
 // Licensed under the Apache License, Version 2.0, see LICENSE for details.
 // SPDX-License-Identifier: Apache-2.0
 
@@ -20,6 +21,11 @@ class cip_base_test #(type CFG_T = cip_base_env_cfg,
       msg = "\s*map .* does not seem to be initialized correctly.*";
       catcher.add_change_sev("RegModel", msg, UVM_INFO);
     end
+
+    // Demote Type Overrides where Templated Agents have the same type for Base driver, Host Driver
+    // and Device Driver
+    msg = "\s*Original and override type arguments are identical: clk_rst_driver";
+    catcher.add_change_sev("TYPDUP", msg, UVM_INFO);
   endfunction
 
   virtual task run_phase(uvm_phase phase);

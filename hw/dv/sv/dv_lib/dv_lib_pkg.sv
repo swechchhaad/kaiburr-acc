@@ -51,6 +51,7 @@ package dv_lib_pkg;
   `include "dv_base_vseq.sv"
 
   `include "dv_test_seq_parameters.sv"
+  `include "dv_config_parameters.sv"
   `include "dv_rand_rst_safe_base_vseq.sv"
 
   // base test

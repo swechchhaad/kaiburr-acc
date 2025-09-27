@@ -1,4 +1,5 @@
 // Copyright lowRISC contributors (OpenTitan project).
+// Copyright zeroRISC Inc.
 // Licensed under the Apache License, Version 2.0, see LICENSE for details.
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -31,6 +32,7 @@ package tl_agent_pkg;
   typedef class tl_agent_cfg;
   // reuse dv_base_driver as is with the right parameter set
   typedef dv_base_driver #(tl_seq_item, tl_agent_cfg) tl_base_driver;
+  typedef dv_rst_safe_base_driver #(tl_seq_item, tl_agent_cfg) tl_rst_safe_base_driver;
 
   // TileLink conformance level
   typedef enum bit [1:0] {
@@ -79,9 +81,12 @@ package tl_agent_pkg;
   `include "tl_agent_cov.sv"
   `include "tl_host_driver.sv"
   `include "tl_device_driver.sv"
+  `include "tl_rst_safe_host_driver.sv"
+  `include "tl_rst_safe_device_driver.sv"
   `include "tl_sequencer.sv"
   `include "tl_monitor.sv"
   `include "tl_agent.sv"
+  `include "tl_rst_safe_agent.sv"
   `include "tl_reg_adapter.sv"
   `include "tl_seq_list.sv"
 

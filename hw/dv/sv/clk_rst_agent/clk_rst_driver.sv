@@ -13,6 +13,9 @@ class clk_rst_driver extends dv_rst_safe_base_driver #(.ITEM_T(clk_rst_item),
   `uvm_component_new
 
   virtual task run_phase(uvm_phase phase);
+
+    if (cfg.reset_domain.is_driving_reset) cfg.reset_domain.apply_reset();
+
     // Need to fork off get_and_drive(). So that when a new transaction is seen from the sequencer
     // it is handled. Do not fork super.run_phase as this class implements the reset assertion and
     // de-assertion ans therefore we do not need anything from the parent class.
@@ -30,7 +33,7 @@ class clk_rst_driver extends dv_rst_safe_base_driver #(.ITEM_T(clk_rst_item),
 
       // Execute the item.
       if (item.item_type == clk_rst_item::APPLY_RESET) begin
-        // call cfg.reset_domain.apply_reset()
+        cfg.reset_domain.apply_reset();
       end else if (item.item_type == clk_rst_item::CONFIG_CLK_INTF) begin
         // call cfg.reset_domain.clk_rst_vif.config_clk_intf()
       end else begin

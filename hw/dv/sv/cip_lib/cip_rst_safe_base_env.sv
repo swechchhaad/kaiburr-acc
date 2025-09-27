@@ -1,16 +1,17 @@
 // Copyright lowRISC contributors (OpenTitan project).
+// Copyright zeroRISC Inc.
 // Licensed under the Apache License, Version 2.0, see LICENSE for details.
 // SPDX-License-Identifier: Apache-2.0
 
-class cip_base_env #(type CFG_T               = cip_base_env_cfg,
-                     type VIRTUAL_SEQUENCER_T = cip_base_virtual_sequencer,
-                     type SCOREBOARD_T        = cip_base_scoreboard,
-                     type COV_T               = cip_base_env_cov)
-                     extends dv_base_env #(CFG_T, VIRTUAL_SEQUENCER_T, SCOREBOARD_T, COV_T);
+class cip_rst_safe_base_env #(type CFG_T               = cip_base_env_cfg,
+                              type VIRTUAL_SEQUENCER_T = cip_base_virtual_sequencer,
+                              type SCOREBOARD_T        = cip_base_scoreboard,
+                              type COV_T               = cip_base_env_cov)
+                             extends dv_base_env #(CFG_T, VIRTUAL_SEQUENCER_T, SCOREBOARD_T, COV_T);
 
-  `uvm_component_param_utils(cip_base_env #(CFG_T, VIRTUAL_SEQUENCER_T, SCOREBOARD_T, COV_T))
+  `uvm_component_param_utils(cip_rst_safe_base_env #(CFG_T, VIRTUAL_SEQUENCER_T, SCOREBOARD_T, COV_T))
 
-  tl_agent                                           m_tl_agents[string];
+  tl_rst_safe_agent                                  m_tl_agents[string];
   tl_reg_adapter #(tl_seq_item)                      m_tl_reg_adapters[string];
   alert_esc_agent                                    m_alert_agent[string];
   push_pull_agent#(.DeviceDataWidth(EDN_DATA_WIDTH)) m_edn_pull_agent[];
@@ -45,7 +46,7 @@ class cip_base_env #(type CFG_T               = cip_base_env_cfg,
 
     // Create & configure the TL agent.
     foreach (cfg.m_tl_agent_cfgs[i]) begin
-      m_tl_agents[i] = tl_agent::type_id::create({"m_tl_agent_", i}, this);
+      m_tl_agents[i] = tl_rst_safe_agent::type_id::create({"m_tl_agent_", i}, this);
       m_tl_reg_adapters[i] = tl_reg_adapter#(tl_seq_item)::type_id::create(
                              {"m_tl_reg_adapter_", i});
       m_tl_reg_adapters[i].cfg = cfg.m_tl_agent_cfgs[i];

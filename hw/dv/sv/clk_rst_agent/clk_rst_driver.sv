@@ -3,11 +3,11 @@
 // SPDX-License-Identifier: Apache-2.0
 
 class clk_rst_driver extends dv_rst_safe_base_driver #(.ITEM_T(clk_rst_item),
-                                              .CFG_T (clk_rst_agent_cfg));
+                                                       .CFG_T (clk_rst_agent_cfg));
   `uvm_component_utils(clk_rst_driver)
 
 
-  // the base class provides the following handles for use:
+  // The base class provides the following handles for use:
   // clk_rst_agent_cfg: cfg
 
   `uvm_component_new

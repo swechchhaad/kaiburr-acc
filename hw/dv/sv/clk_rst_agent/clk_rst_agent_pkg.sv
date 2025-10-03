@@ -3,7 +3,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
 package clk_rst_agent_pkg;
-  // dep packages
   import uvm_pkg::*;
   import dv_utils_pkg::*;
   import dv_lib_pkg::*;

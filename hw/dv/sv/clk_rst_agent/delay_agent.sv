@@ -2,7 +2,7 @@
 // Licensed under the Apache License, Version 2.0, see LICENSE for details.
 // SPDX-License-Identifier: Apache-2.0
 
-// This agent is a customised/cut down version. Do not need all aspects of the dv_base_agent
+// This agent is a customized/cut down version. Do not need all aspects of the dv_base_agent
 // Need only the sequencer and driver alone and the other aspects are not relevant.
 
 class delay_agent extends uvm_agent;
@@ -14,7 +14,6 @@ class delay_agent extends uvm_agent;
   delay_sequencer    sequencer;
 
   `uvm_component_new
-
 
   function void build_phase(uvm_phase phase);
     super.build_phase(phase);

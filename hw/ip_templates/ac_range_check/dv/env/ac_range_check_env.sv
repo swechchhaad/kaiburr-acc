@@ -37,7 +37,7 @@ function void ac_range_check_env::build_phase(uvm_phase phase);
   cfg.tl_unfilt_agt_cfg.en_cov = cfg.en_cov;
   cfg.tl_unfilt_agt_cfg.reset_domain = cfg.reset_domain;
 
-  // Create Fltered TL agent
+  // Create Filtered TL agent
   tl_filt_agt = tl_agent::type_id::create("tl_filt_agt", this);
   uvm_config_db#(tl_agent_cfg)::set(this, "tl_filt_agt*", "cfg", cfg.tl_filt_agt_cfg);
   cfg.tl_filt_agt_cfg.en_cov = cfg.en_cov;
@@ -45,7 +45,7 @@ function void ac_range_check_env::build_phase(uvm_phase phase);
 
   // clk_rst_agent establishes the default reset_domain that all other agents should use in the
   // testbench. If there are more than one reset domains for the block/toplevel multiple clock
-  // agents with their associated reset domains should be establishec
+  // agents with their associated reset domains should be created.
   clk_rst_agt = clk_rst_agent::type_id::create("clk_rst_agt", this);
   uvm_config_db#(clk_rst_agent_cfg)::set(this, "clk_rst_agt*", "cfg", cfg.clk_rst_agt_cfg);
   cfg.clk_rst_agt_cfg.en_cov       = cfg.en_cov;
@@ -81,5 +81,5 @@ function void ac_range_check_env::connect_phase(uvm_phase phase);
     virtual_sequencer.tl_filt_sqr = tl_filt_agt.sequencer;
   end
 
-  virtual_sequencer.clk_rst_sqr = clk_rst_agt.sequencer;
+  virtual_sequencer.clk_rst_sequencer_h = clk_rst_agt.sequencer;
 endfunction : connect_phase

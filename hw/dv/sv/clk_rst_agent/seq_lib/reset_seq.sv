@@ -2,6 +2,17 @@
 // Licensed under the Apache License, Version 2.0, see LICENSE for details.
 // SPDX-License-Identifier: Apache-2.0
 
+// 'reset_seq' is an interface sequence that work on the clock reset sequencer connected to the clock
+// reset interface.
+//
+// The primary function of the reset sequence is to trigger 'reset' on the reset domain associated
+// to the clock reset agent.
+//
+// To use this sequence in a higher level virtual sequence
+// - Create an instance of the 'reset_seq'
+// - Start the execution of the sequence : reset_seq_inst.start(clk_rst_sequencer)
+
+
 class reset_seq extends dv_base_seq #(
     .REQ         (clk_rst_item),
     .CFG_T       (clk_rst_agent_cfg),
@@ -18,10 +29,7 @@ class reset_seq extends dv_base_seq #(
 
     item           = clk_rst_item::type_id::create("reset_seq:item");
     item.item_type = clk_rst_item::APPLY_RESET;
-    assert (item.randomize())
-    else begin
-      `uvm_fatal (get_name(), "reset_sequence::body() - clk_rst_item randomisation failed")
-    end
+    `DV_CHECK_RANDOMIZE_FATAL(item)
 
     start_item(item);
     finish_item(item);

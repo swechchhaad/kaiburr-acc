@@ -465,9 +465,9 @@ class dv_base_reg extends uvm_reg;
       atomic_en_shadow_wr = new(1);
     end
 
-    // If reset is seen in the middle of read / write / predict which protected by access_lock
-    // post reset lock up is observed
-    access_lock = null;
+    // If a reset occurs during a read, write, or predict operation protected by access_lock,
+    // the operation may not complete, potentially causing access issues after the reset is
+    // released. To address this, we introduce a new lock to re-enable access safely.
     access_lock = new(1);
   endfunction
 

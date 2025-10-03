@@ -9,7 +9,7 @@ class clk_rst_monitor extends dv_rst_safe_base_monitor #(
   );
   `uvm_component_utils(clk_rst_monitor)
 
-  // the base class provides the following handles for use:
+  // The base class provides the following handles for use:
   // clk_rst_agent_cfg: cfg
   // clk_rst_agent_cov: cov
   // uvm_analysis_port #(clk_rst_item): analysis_port

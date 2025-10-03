@@ -54,7 +54,7 @@ class cip_base_env #(type CFG_T               = cip_base_env_cfg,
       cfg.m_tl_agent_cfgs[i].en_cov       = cfg.en_cov;
 
       if (cfg.reset_domains.exists({"reset_domain_", i})) begin
-        `uvm_info(get_full_name(), {"reset domain: ", "reset_domain_", i,
+        `uvm_info(get_full_name(), {"reset domain: reset_domain_", i,
                                     " assigned to m_tl_agent[", i,"]"}, UVM_LOW)
         cfg.m_tl_agent_cfgs[i].reset_domain = cfg.reset_domains[{"reset_domain_", i}];
       end else begin

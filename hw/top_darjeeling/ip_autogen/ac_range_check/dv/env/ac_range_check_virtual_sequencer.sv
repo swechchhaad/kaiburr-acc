@@ -11,7 +11,7 @@ class ac_range_check_virtual_sequencer extends cip_base_virtual_sequencer #(
 
   // This virtual sequencer inherits the following handles from cip_base_virtual_sequencer
   // that need be connected at an environment level
-  // - clk_rst_sequencer clk_rst_sqr;             -- Default clocking and reset control
+  // - clk_rst_sequencer clk_rst_sequencer_h;     -- Default clocking and reset control
   // - tl_sequencer      tl_sequencer_h;          -- TODO: Understand how this gets connected up
   // - tl_sequencer      tl_sequencer_hs[string]; -- TODO: Understand how this gets connected up
 

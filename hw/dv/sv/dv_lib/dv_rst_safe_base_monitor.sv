@@ -2,6 +2,10 @@
 // Licensed under the Apache License, Version 2.0, see LICENSE for details.
 // SPDX-License-Identifier: Apache-2.0
 
+
+// This is a new base class that all monitors. The base class provides tasks and methods to make the
+// monitor reset safe.
+
 class dv_rst_safe_base_monitor #(type ITEM_T = uvm_sequence_item,
                                  type REQ_ITEM_T = ITEM_T,
                                  type RSP_ITEM_T = ITEM_T,
@@ -23,12 +27,11 @@ class dv_rst_safe_base_monitor #(type ITEM_T = uvm_sequence_item,
   extern function void build_phase(uvm_phase phase);
   extern task run_phase(uvm_phase phase);
 
-  // 'collect_trans()' task is the main task that monitors the inteface and builds the necessary
+  // 'collect_trans()' task is the main task that monitors the interface and builds the necessary
   // transactions that the scoreboard uses.
   extern virtual task collect_trans();
 
-  // 'reset_monitor()' function is used by the reset_thread to get the monitor to the default
-  // state
+  // 'reset_monitor()' function is used by the reset_thread to get the monitor to the reset state.
   extern function void reset_monitor();
 endclass
 
@@ -49,9 +52,7 @@ task dv_rst_safe_base_monitor::run_phase(uvm_phase phase);
 
   super.run_phase(phase);
 
-  if (cfg.reset_domain == null)  begin
-    `uvm_fatal (`gfn, "cfg.reset_domain == null, please ensure reset_domain is setup in cfg")
-  end
+  `DV_CHECK_NE(cfg.reset_domain,null)
 
   // The first reset is POR. Wait until a full reset cycle is observed before
   // capturing any transaction on the interface
@@ -64,8 +65,8 @@ task dv_rst_safe_base_monitor::run_phase(uvm_phase phase);
     reset_thread_id         = null;
     collect_trans_thread_id = null;
 
-    // At this point reset is released and the monitor is the default state. We now need to monitor
-    // reset and the interface signals conurrently. The interface monitor thread
+    // At this point reset is released and the monitor is the reset state. We now need to monitor
+    // reset and the interface signals concurrently. The interface monitor thread
     // Process threading is used instead of isolation forks as it is cleaner and allows for fine
     // grained thread control.
     fork
@@ -85,7 +86,7 @@ task dv_rst_safe_base_monitor::run_phase(uvm_phase phase);
     wait (reset_thread_id != null && collect_trans_thread_id != null);
 
     // Now wait till reset thread finishes. Reset Thread should be the only one to finish first as
-    // the 'interface_monitor_thread' should be a forever loop monitoring the the interface
+    // the 'interface_monitor_thread' should be a forever loop monitoring the interface
     // signals.
     // Since we are using threading mechanism the 'await()' method blocks until the process on
     // which it is called has finished.
@@ -94,13 +95,14 @@ task dv_rst_safe_base_monitor::run_phase(uvm_phase phase);
     // At this point the reset has been triggered on the interface. The monitor needs to get back
     // to the original state as it was to just after the POR. So we will terminate anything the
     // monitor is doing and wait till reset is released.
-    if (   collect_trans_thread_id.status() == process::RUNNING
-        || collect_trans_thread_id.status() == process::WAITING
-        || collect_trans_thread_id.status() == process::SUSPENDED) begin
+    if (collect_trans_thread_id.status() == process::RUNNING ||
+        collect_trans_thread_id.status() == process::WAITING ||
+        collect_trans_thread_id.status() == process::SUSPENDED) begin
       `uvm_info (get_name(), "killing collect_trans() thread", UVM_MEDIUM)
       collect_trans_thread_id.kill();
-    end else if (collect_trans_thread_id.status() == process::FINISHED)  begin
-      `uvm_fatal (`gfn, "collect_trans() thread finished before reset thread")
+    end else if (collect_trans_thread_id.status() == process::FINISHED ||
+                 collect_trans_thread_id.status() == process::KILLED)  begin
+      `uvm_fatal (`gfn, "collect_trans() thread finished or killed before reset thread")
     end
 
     cfg.reset_domain.wait_reset_deassert();

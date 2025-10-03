@@ -42,29 +42,33 @@ class dv_base_env #(type CFG_T               = dv_base_env_cfg,
         // testbench.
         cfg.reset_domains[ral_name] = dv_rst_domain::type_id::create({"reset_domain_", ral_name});
 
-        // TODO: Interfaces should only be accessible to a driver or a monitor.
+        // TODO: Issue #88 - (zerorisc/expo)
+        // Interfaces should only be accessible to a driver or a monitor.
         if (!uvm_config_db#(virtual clk_rst_if)::get(this, "", if_name,
                                                      cfg.reset_domains[ral_name].clk_rst_vif)) begin
           `uvm_fatal(`gfn, $sformatf("failed to get clk_rst_if for %0s from uvm_config_db",
-                     ral_name))
+                                     ral_name))
         end
         cfg.reset_domains[ral_name].clk_rst_vif.set_freq_mhz(cfg.clk_freqs_mhz[ral_name]);
 
-        // TODO: Code to Deprecate
+        // TODO: - Issue #89 - (zerorisc/expo)
+        // Code to Deprecate
         // As TB's transition to using reset_domains, 'cfg.clk_rst_vifs[ral_name]'
-        // should be replaced by 'cfg.reset_domains[ral_name].clk_rst_vif' to be used only in
-        // drivers and monitors. All other components where vif's (other than drivers/monitors)are
-        // used, they should be changed to .
+        // should be replaced by 'cfg.reset_domains[ral_name].clk_rst_vif', to be used only in
+        // drivers and monitors. All other components where vif's (other than drivers/monitors) are
+        // used, should have logic updated to remove reliance on interfaces.
         cfg.clk_rst_vifs[ral_name] = cfg.reset_domains[ral_name].clk_rst_vif;
       end
 
       // assign default clk_rst_vif
-      // TODO: Deprecate the use of default 'clk_rst_vif' but use 'cfg.reset_domain.clk_rst_vif'
+      // TODO: - Issue #89 - (zerorisc/expo)
+      // Deprecate the use of default 'clk_rst_vif' but use 'cfg.reset_domain.clk_rst_vif'
       `DV_CHECK_FATAL(cfg.reset_domains.exists(default_ral_name))
       cfg.reset_domain = dv_rst_domain::type_id::create("default_rst_domain");
       cfg.reset_domain.clk_rst_vif = cfg.reset_domains[default_ral_name].clk_rst_vif;
 
-      // TODO: Line to be deprecated
+      // TODO: - Issue #89 - (zerorisc/expo)
+      // Line to be deprecated
       cfg.clk_rst_vif = cfg.reset_domain.clk_rst_vif;
     end else begin
       // no RAL model, get the default clk_rst_vif for the block
@@ -77,7 +81,8 @@ class dv_base_env #(type CFG_T               = dv_base_env_cfg,
       end
       cfg.reset_domain.clk_rst_vif.set_freq_mhz(cfg.clk_freq_mhz);
 
-      // TODO: Line to be deprecated
+      // TODO: - Issue #89 - (zerorisc/expo)
+      // Line to be deprecated
       cfg.clk_rst_vif = cfg.reset_domain.clk_rst_vif;
     end
 

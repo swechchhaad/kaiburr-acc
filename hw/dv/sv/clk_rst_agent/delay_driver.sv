@@ -7,14 +7,14 @@ class delay_driver extends dv_rst_safe_base_driver #(.ITEM_T(clk_rst_item),
   `uvm_component_utils(delay_driver)
 
 
-  // the base class provides the following handles for use:
+  // The base class provides the following handles for use:
   // clk_rst_agent_cfg: cfg
 
   `uvm_component_new
 
   virtual task run_phase(uvm_phase phase);
-    // This driver needs to be reset safe. Though is part of clk_rst package. When reset is asserted
-    // all delay transactions need to be terminated immidiately which is done in the parent class
+    // This driver is reset safe. When reset is asserted all delay transactions in flight are
+    // immediately terminated by the parent class.
     super.run_phase(phase);
   endtask
 
@@ -22,24 +22,24 @@ class delay_driver extends dv_rst_safe_base_driver #(.ITEM_T(clk_rst_item),
   // reset signals
   virtual function void reset_interface_and_driver();
     // Nothing to do here. Have this empty function as it is necessary to overcome the fatal in the
-    // parent class
+    // parent class.
   endfunction
 
-  // drive outputs based on inputs
+  // Drive outputs based on inputs
   virtual task get_and_drive();
     clk_rst_item  item;
 
     forever begin
       // Get the next data item from sequencer
-      seq_item_port.get_next_item (item);
+      get_next_item (item);
 
       if (item.item_type == clk_rst_item::DELAY) begin
-        // call cfg.reset_domain.clk_rst_vif.count_clks()
+        cfg.reset_domain.clk_rst_vif.wait_clks(item.delay_time_steps);
       end else begin
-        // uvm_fatal
+        `uvm_fatal (`gfn, {"Unsupported item.type: ", item.item_type.name()})
       end
 
-      seq_item_port.item_done();
+      item_done();
     end // forever
   endtask
 

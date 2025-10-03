@@ -2,6 +2,10 @@
 // Licensed under the Apache License, Version 2.0, see LICENSE for details.
 // SPDX-License-Identifier: Apache-2.0
 
+
+// This is a base class for all drivers. The base class provides tasks and methods to make the
+// driver reset safe.
+
 class dv_rst_safe_base_driver #(type ITEM_T     = uvm_sequence_item,
                                 type CFG_T      = dv_base_agent_cfg,
                                 type RSP_ITEM_T = ITEM_T)
@@ -18,13 +22,19 @@ class dv_rst_safe_base_driver #(type ITEM_T     = uvm_sequence_item,
   extern function new (string name, uvm_component parent);
   extern task run_phase(uvm_phase phase);
 
-  // 'get_and_drive' task is the main thread of the driver. This task functions
+  // 'get_and_drive' task is the main thread of the driver. A derived class will need to implement
+  // the logic with the assumption that when this task is operational reset will be stable.
+  // When reset is asserted the body() task implemented here will terminate the thread that invokes
+  // this task and will restart it when reset is stable again.
   extern virtual task get_and_drive();
 
   // 'reset_interface_and_driver' function is invoked when reset is triggered
   // The derived driver needs to implement this as to get the driver and the pins to the default
-  // state when in POR
+  // state when in reset.
   extern virtual function void reset_interface_and_driver();
+
+  extern task get_next_item(output ITEM_T item);
+  extern virtual function void item_done();
 endclass
 
 
@@ -42,8 +52,8 @@ task dv_rst_safe_base_driver::run_phase(uvm_phase phase);
     `uvm_fatal (`gfn, "cfg.reset_domain == null, please ensure reset_domain is setup in cfg")
   end
 
-  // The first reset is POR. Wait until a full reset cycle is observed before
-  // driving any transaction on the interfacehw/dv/sv/dv_lib/dv_rst_safe_base_driver.sv
+  // The first reset is POR. Wait until a full reset cycle is observed before driving any transaction
+  // on the interface.
   cfg.reset_domain.wait_reset_assert();
   reset_interface_and_driver();
 
@@ -87,9 +97,9 @@ task dv_rst_safe_base_driver::run_phase(uvm_phase phase);
 
     `uvm_info (get_name(), "Reset Thread finished", UVM_MEDIUM)
 
-    if (   get_and_drive_thread_id.status() == process::RUNNING
-        || get_and_drive_thread_id.status() == process::WAITING
-        || get_and_drive_thread_id.status() == process::SUSPENDED) begin
+    if (get_and_drive_thread_id.status() == process::RUNNING ||
+        get_and_drive_thread_id.status() == process::WAITING ||
+        get_and_drive_thread_id.status() == process::SUSPENDED) begin
       `uvm_info (get_name(), "killing get_and_drive_thread_id() thread", UVM_MEDIUM)
       get_and_drive_thread_id.kill();
       if (processing_item) begin
@@ -97,7 +107,8 @@ task dv_rst_safe_base_driver::run_phase(uvm_phase phase);
         seq_item_port.item_done();
       end
       processing_item = 0;
-    end else if (get_and_drive_thread_id.status() == process::FINISHED)  begin
+    end else if (get_and_drive_thread_id.status() == process::FINISHED ||
+                 get_and_drive_thread_id.status() == process::KILLED)  begin
       `uvm_fatal (`gfn, "get_and_drive_thread_id() thread finished before reset thread")
     end
 
@@ -110,7 +121,18 @@ function void dv_rst_safe_base_driver::reset_interface_and_driver();
   `uvm_fatal (`gfn, "reset_interface_and_driver() needs an implementation")
 endfunction
 
-// drive trans received from sequencer
+// Main task of the driver that will fetch a transaction from the sequencer and then convert
+// the commands in the transaction to pin wiggles on the interface of the DUT
 task dv_rst_safe_base_driver::get_and_drive();
   `uvm_fatal (`gfn, "get_and_drive() needs an implementation")
 endtask
+
+task dv_rst_safe_base_driver::get_next_item(output ITEM_T item);
+  seq_item_port.get_next_item(item);
+  processing_item = 1;
+endtask
+
+function void dv_rst_safe_base_driver::item_done();
+  seq_item_port.item_done();
+  processing_item = 0;
+endfunction

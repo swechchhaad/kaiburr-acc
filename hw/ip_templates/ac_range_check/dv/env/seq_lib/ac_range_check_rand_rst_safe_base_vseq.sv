@@ -8,14 +8,14 @@
 
 // First declare ac_range_check_test_seq_parameters class (inherits dv_test_seq_parameters) that
 // contains the control knobs that are required by the sequence.
-// Instance of ac_range_check_base_test_seq_parameters is randomized at the begining of sequence
+// Instance of ac_range_check_base_test_seq_parameters is randomized at the beginning of sequence
 // execution and held constant until the end.
 //
 // 'ac_range_check_base_config_parameters' contains all the other control knobs/parameters that any
 // ac_range_check test sequence will require. An instance of this class can be used to generate
 // constraint random data during the execution of the 'main_thread()'
-// It also contains the instantiation of the "dut_cfg" class which itself contains all variables
-// relating to the DUT configuration.
+// It also contains the "dut_cfg" class which itself contains all variables relating to DUT
+// configuration.
 //
 // By default, TL transactions are random and can easily be overridden by derived sequences as
 // required.
@@ -31,13 +31,13 @@ class ac_range_check_base_test_seq_parameters extends dv_test_seq_parameters;
   // num_reset_loops = <integer_value>;
   // num_trans       = <integer_value>;  -- Controls how many transactions are triggered in each run
   //                                        of the main_thread()
-  // do_dut_init     = 1                 -- Controls if DUT needs to be initialized jusr after
+  // do_dut_init     = 1                 -- Controls if DUT needs to be initialized just after
   //                                        release of reset and before main_thread() is invoked
   // do_dut_shutdown = 1                 -- Controls if 'dut_shutdown()' task has to be executed
 
   // If reset_testing == ENABLE, 'num_reset_loops > 0' -- Put a constraint in the derived sequence
   //                                                      to limit the number of runs.
-  // If reset_testing == DISABLE,'num_reset_loops == 1'-- Ensure is atleast equal to '1'
+  // If reset_testing == DISABLE,'num_reset_loops == 1'-- Ensure is at least equal to '1'
 
   // ---
   // The control knobs below are all the control knobs that are used by 'ac_range_check sequences'
@@ -201,7 +201,7 @@ class ac_range_check_rand_rst_safe_base_vseq extends cip_rand_rst_safe_base_vseq
   );
   `uvm_object_utils(ac_range_check_rand_rst_safe_base_vseq)
 
-  // Moving of all sequence control parameters to two seperate parameter classes helps with random
+  // Moving of all sequence control parameters to two separate parameter classes helps with random
   // stability issues that were observed during coverage closure for ac_range_check block
 
   // This vseq inherits two params object instances that are created instanced in
@@ -259,7 +259,7 @@ task ac_range_check_rand_rst_safe_base_vseq::reset_trigger_thread();
 
   // Execute the reset sequence on the clk reset sequencer
   rst_seq = reset_seq::type_id::create("reset_sequence");
-  rst_seq.start(p_sequencer.clk_rst_sqr);
+  rst_seq.start(p_sequencer.clk_rst_sequencer_h);
 endtask : reset_trigger_thread
 
 
@@ -281,7 +281,7 @@ endfunction : handle_reset_assertion
 
 task ac_range_check_rand_rst_safe_base_vseq::dut_init();
 
-  // TODO: misc_vif needs to be moved into a seperate agent
+  // TODO: misc_vif needs to be moved into a separate agent
   // and have appropriate sequences to drive the interface
   // Initialize some of DUT inputs
   cfg.misc_vif.set_range_check_overwrite(0);
@@ -412,7 +412,7 @@ task ac_range_check_rand_rst_safe_base_vseq::configure_range(int unsigned idx = 
   csr_update(.csr(ral.range_limit[idx]));
 
   // Needed by the parent sequence to generate TLUL transaction with appropriate addresses.
-  // Randomisation is disabled on the base and limit so as to allow this sequence to do the
+  // Randomization is disabled on the base and limit so as to allow this sequence to do the
   // appropriate lock range testing
   config_params.dut_cfg.range_base[idx] = base;
   config_params.dut_cfg.range_base[idx].rand_mode(0);

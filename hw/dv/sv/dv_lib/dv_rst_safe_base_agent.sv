@@ -74,7 +74,7 @@ function void dv_rst_safe_base_agent::connect_phase(uvm_phase phase);
   end
 endfunction
 
-// All agents will need to be associated with atleast one reset domain.
+// All agents will need to be associated with at least one reset domain.
 // As TB's transition to using reset domains this check is vital to ensure all agents clocking is
 // only coming from the interface in the reset domain
 function void dv_rst_safe_base_agent::start_of_simulation_phase(uvm_phase phase);

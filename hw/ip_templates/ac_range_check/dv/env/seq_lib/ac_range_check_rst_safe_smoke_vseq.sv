@@ -14,7 +14,7 @@ class ac_range_check_smoke_test_seq_parameters extends ac_range_check_base_test_
   // num_reset_loops = <integer_value>;
   // num_trans       = <integer_value>;  -- Controls how many transactions are triggered in each run
   //                                        of the main_thread()
-  // do_dut_init     = 1                 -- Controls if DUT needs to be initialized at the begining
+  // do_dut_init     = 1                 -- Controls if DUT needs to be initialized at the beginning
   //                                        of after release of reset and before main_thread() is
   //                                        invoked
   // do_dut_shutdown = 1                 -- Controls if 'dut_shutdown90' task has to be executed
@@ -23,7 +23,7 @@ class ac_range_check_smoke_test_seq_parameters extends ac_range_check_base_test_
 
   // If reset_testing == ENABLE, 'num_reset_loops > 0' -- Put a constraint in the derived sequence
   //                                                      to limit the number of runs.
-  // If reset_testing == DISABLE,'num_reset_loops == 1'-- Ensure is atleast equal to '1'
+  // If reset_testing == DISABLE,'num_reset_loops == 1'-- Ensure is at least equal to '1'
 
 
 

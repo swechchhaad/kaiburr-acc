@@ -127,12 +127,10 @@ task tl_rst_safe_host_driver::a_channel_thread();
 
   forever begin
     `uvm_info(`gfn, "Calling get_next_item()", UVM_HIGH)
-    seq_item_port.get_next_item(req);
-    processing_item = 1;
+    get_next_item(req);
     send_a_channel_request(req);
-    processing_item = 0;
 
-    // seq_item_port.item_done() is called inside the send_a_channel_request() task when the item is
+    // item_done() is called inside the send_a_channel_request() task when the item is
     // processed
   end
 endtask
@@ -197,7 +195,8 @@ task tl_rst_safe_host_driver::send_a_channel_request(tl_seq_item req);
   end : while_loop
 
   `uvm_info(`gfn, "Calling seq_item_port.item_done()", UVM_HIGH)
-  seq_item_port.item_done();
+  this.item_done();
+
   if (req_abort || reset_asserted) begin
     req.req_completed = 0;
     // Just wire the d_source back to a_source to avoid errors in upstream logic.

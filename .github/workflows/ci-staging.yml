@@ -3,7 +3,7 @@
 # Licensed under the Apache License, Version 2.0, see LICENSE for details.
 # SPDX-License-Identifier: Apache-2.0
 
-name: CI
+name: CI (Staging)
 on:
   pull_request:
     branches-ignore:

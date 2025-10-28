@@ -6,6 +6,7 @@
 name = "cargo_tock_deps"
 version = "0.0.0"
 publish = false
+license = "Apache-2.0"
 
 [lib]
 path = "empty_file_to_appease_cargo.rs"

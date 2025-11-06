@@ -145,5 +145,6 @@ run --sandbox_explicit_pseudoterminal
 # which would help the cacheability.
 build --incompatible_strict_action_env
 
-# zerorisc/expo-specific fix to use the latest bitstream.
-build --repo_env BITSTREAM=latest
+# Bazel remote cache configuration.
+common --remote_cache=https://storage.googleapis.com/expo-bazel-cache"
+build --remote_upload_local_results=false

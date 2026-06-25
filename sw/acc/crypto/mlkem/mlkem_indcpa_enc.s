@@ -250,7 +250,10 @@ indcpa_enc:
     jal  x1, basemul
 
     addi t1, x14, -2
+    /* ML-KEM-512 (K=2) zero-iteration guard removed for now; K>=3 -> t1>=1 */
+#if 0
     beq  t1, x0, _skip_empty_basemul_loop
+#endif
     LOOP t1, 11
       /* Gen next mat poly */
       la   a0, seed
@@ -264,7 +267,9 @@ indcpa_enc:
       la   x28, twiddles_basemul
       jal  x1, basemul_acc
       addi a1, a1, POLY /* points back to A[0][1] */
-_skip_empty_basemul_loop:
+#if 0
+_skip_empty_basemul_loop: /* K=2 skip target removed */
+#endif
 
     /* Gen next mat poly */
     la   a0, seed
@@ -297,7 +302,10 @@ _skip_empty_basemul_loop:
   jal  x1, basemul
 
   addi t1, x14, -2
+  /* RESEARCH: ML-KEM-512 (K=2) zero-iteration guard removed; K>=3 -> t1>=1. */
+#if 0
   beq t1, x0, _skip_empty_basemul_loop_last
+#endif
   LOOP t1, 11
     /* Gen next mat poly */
     la   a0, seed
@@ -311,7 +319,9 @@ _skip_empty_basemul_loop:
     la   x28, twiddles_basemul
     jal  x1, basemul_acc
     addi a1, a1, POLY /* points back to A[0][1] */
-_skip_empty_basemul_loop_last:
+#if 0
+_skip_empty_basemul_loop_last: /* RESEARCH: K=2 skip target removed. */
+#endif
 
   /* Gen next mat poly */
   la   a0, seed

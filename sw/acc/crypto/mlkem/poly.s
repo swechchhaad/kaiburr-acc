@@ -177,12 +177,15 @@ poly_getnoise_eta_init:
 
 .globl poly_getnoise_eta_1
 poly_getnoise_eta_1:
-  /* eta1 = 3 for ML-KEM-512 (K=2), eta1 = eta2 = 2 for ML-KEM-768/1024
-   * (K=3,4). Dispatch on x14 to the matching CBD sampler. */
+  /* eta1=3 removed.
+   * always use the eta=2 CBD sampler (will come back to change this later) */
+#if 0
   li  x28, 2
   beq x14, x28, poly_getnoise_cbd3
+#endif
   jal x0, poly_getnoise_cbd2
 
+#if 0 /* eta1=3 sampler removed for now */
 /*
  * Name:        poly_getnoise_cbd3
  *
@@ -211,6 +214,7 @@ poly_getnoise_cbd3:
   jal    x1, cbd3
 
   ret
+#endif
 
 /*
  * Name:        poly_getnoise_eta2

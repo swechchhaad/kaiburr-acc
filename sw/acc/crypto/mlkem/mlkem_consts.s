@@ -125,6 +125,7 @@ cbd2_const:
   .word 0x33333333
   .word 0x33333333
 
+#if 0 /* eta=3 CBD constant removed for now */
 .globl cbd3_const
 cbd3_const:
   /* const1 */
@@ -145,6 +146,7 @@ cbd3_const:
   .word 0x1c71c71c
   .word 0xc71c71c7
   .word 0x71c71c71
+#endif
 
 .globl twiddles_ntt
 twiddles_ntt:

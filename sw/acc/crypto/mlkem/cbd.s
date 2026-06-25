@@ -64,6 +64,7 @@ cbd2:
         NOP
     ret
 
+#if 0 /* eta=3 CBD sampler removed for now */
 /*
  * cbd3
  *
@@ -232,3 +233,4 @@ cbd3:
         bn.subvm.16H w11, w8, w9
         bn.sid  x19, 0(x11++)
     ret
+#endif

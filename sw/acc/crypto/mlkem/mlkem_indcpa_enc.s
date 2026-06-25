@@ -381,13 +381,11 @@ _skip_empty_basemul_loop_last:
   add  a2, x0, a6
   jal  x1, poly_add
 
-  /*** pack_ciphertext ***/
+  /*** pack_ciphertext (uncompressed ver) ***/
   la   a0, poly_b
   la   a1, poly_v
   la   t0, dptr_ct
   lw   a2, 0(t0)
-  la   a3, const_1290167
-  la   a5, modulus_over_2
   jal  x1, pack_ciphertext
   ret
 

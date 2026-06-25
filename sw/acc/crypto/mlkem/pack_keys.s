@@ -27,6 +27,7 @@
  * clobbered registers: x4-x9, w0-w5, w31
  */
 
+.globl poly_tobytes
 poly_tobytes:
   LOOPI 4, 37
     /* Load inputs */
@@ -179,6 +180,7 @@ pack_sk:
  * clobbered registers: x4-x8, w0-w4, w31
  */
 
+.globl poly_frombytes
 poly_frombytes:
   LOOPI 4, 35
     /* Load inputs */

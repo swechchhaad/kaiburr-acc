@@ -98,10 +98,9 @@ indcpa_dec:
   sw a3, STACK_DEC_M_ADDR(fp)
   sw a1, STACK_DEC_SK_ADDR(fp)
 
-  /*** unpack_ciphertext ***/
+  /*** unpack_ciphertext (uncompressed ver) ***/
   li  a2, STACK_DEC_B
   add a2, fp, a2
-  la  a3, const_8
   la  a5, const_0x0fff
   jal x1, unpack_ciphertext
 

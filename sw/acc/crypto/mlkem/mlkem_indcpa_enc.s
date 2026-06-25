@@ -438,14 +438,14 @@ poly_k:
 poly_b:
 .zero 512
 
-/* Shared buffer for public key polyvec (k*512 bytes, max K=4) and epp. */
+/* Shared buffer for public key polyvec (k*512 bytes, max K=24) and epp. */
 .balign 32
 pkpv:
 epp:
-.zero 2048
+.zero 12288
 
-/* Shared buffer for sp and ep (k*512 bytes, max K=4). */
+/* Shared buffer for sp and ep (k*512 bytes, max K=24). */
 .balign 32
 sp:
 ep:
-.zero 2048
+.zero 12288

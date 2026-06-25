@@ -94,8 +94,8 @@ indcpa_keypair:
     #define STACK_NOISESEED    -96
     #define STACK_NONCE        -64
   #define STACK_TMP           -640
-  #define STACK_A            -2688
-  #define STACK_SKPV         -4736
+  #define STACK_A            -12928
+  #define STACK_SKPV         -25216
 
   /* Store parameters to stack */
   sw  a0, STACK_COINS_ADDR(fp)
@@ -293,7 +293,7 @@ indcpa_keypair:
 crypto_kem_keypair:
   /* Set frame pointer */
   addi fp, sp, 0
-  li   t0, -4736
+  li   t0, -25216
   add  sp, sp, t0
 
   /*** indcpa_keypair ***/

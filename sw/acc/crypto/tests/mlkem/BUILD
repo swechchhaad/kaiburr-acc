@@ -14,9 +14,7 @@ load("//rules:acc.bzl", "acc_autogen_sim_test", "acc_binary", "acc_consttime_tes
 package(default_visibility = ["//visibility:public"])
 
 MODE_FOR_PARAMS = {
-    "mlkem512": 2,
-    "mlkem768": 3,
-    "mlkem1024": 4,
+    "kaiburr8": 24,
 }
 
 NTESTS = 3

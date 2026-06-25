@@ -87,12 +87,13 @@
  */
 .globl indcpa_dec
 indcpa_dec:
-  /* Stack layout (worst-case K=4). V and SKPV follow B contiguously:
+  /* stack layout (K=24, kaiburr8)
    *   STACK_DEC_B + K*512    : poly v
-   *   STACK_DEC_B + (K+1)*512: secret key polyvec */
+   *   STACK_DEC_B + (K+1)*512: secret key polyvec
+   * working region size = (2K+1)*512 = 25088 bytes. */
   #define STACK_DEC_M_ADDR     -32
   #define STACK_DEC_SK_ADDR    -36
-  #define STACK_DEC_B        -4640
+  #define STACK_DEC_B        -34880
 
   /* Store parameters to stack */
   sw a3, STACK_DEC_M_ADDR(fp)
@@ -196,13 +197,13 @@ crypto_kem_dec:
   #define STACK_KEM_DEC_CT_ADDR  -20
   #define STACK_KEM_DEC_PK_ADDR  -24
   #define STACK_KEM_DEC_CMP_ADDR -32
-  /* Worst-case (K=4) stack offsets */
-  #define STACK_KEM_DEC_KR     -5280
-  #define STACK_KEM_DEC_BUF    -5344
-  #define STACK_KEM_DEC_CMP    -3168
+  /* K=24 (kaiburr8) stack offsets */
+  #define STACK_KEM_DEC_KR     -128
+  #define STACK_KEM_DEC_BUF    -192
+  #define STACK_KEM_DEC_CMP    -9792
   /* Set frame pointer */
   addi fp, sp, 0
-  li   t0, -5344
+  li   t0, -34880
   add  sp, sp, t0
 
   /* Save parameters to stack */
@@ -325,6 +326,26 @@ crypto_kem_dec:
 kyber_ciphertext_sizes:
 .word 0     /* K=0 unused */
 .word 0     /* K=1 unused */
-.word 768   /* K=2 (ML-KEM-512) */
-.word 1088  /* K=3 (ML-KEM-768) */
-.word 1568  /* K=4 (ML-KEM-1024) */
+.word 0   /* K=2 (ML-KEM-512) unused */
+.word 0  /* K=3 (ML-KEM-768) unused */
+.word 0  /* K=4 (ML-KEM-1024) unused */
+.word 0  /* K=5 unused */
+.word 0  /* K=6 unused */
+.word 0  /* K=7 unused */
+.word 0  /* K=8 unused */
+.word 0  /* K=9 unused */
+.word 0  /* K=10 unused */
+.word 0  /* K=11 unused */
+.word 0  /* K=12 unused */
+.word 0  /* K=13 unused */
+.word 0  /* K=14 unused */
+.word 0  /* K=15 unused */
+.word 0  /* K=16 unused */
+.word 0  /* K=17 unused */
+.word 0  /* K=18 unused */
+.word 0  /* K=19 unused */
+.word 0  /* K=20 unused */
+.word 0  /* K=21 unused */
+.word 0  /* K=22 unused */
+.word 0  /* K=23 unused */
+.word 9600 /* K = 24 (kaiburr8) */

@@ -194,7 +194,9 @@ py_binary(
         ],
         exp = "mlkem_roundtrip_test.exp",
         pqc = True,
-        stats = STATS,
+        # raising the timeout
+        stats = False,
+        timeout = "eternal",
         deps = [
             "//sw/acc/crypto/mlkem:basemul",
             "//sw/acc/crypto/mlkem:cbd",

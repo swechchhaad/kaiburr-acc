@@ -15,7 +15,7 @@
 
 .section .text.start
 
-#define STACK_SIZE 20000
+#define STACK_SIZE 40960 /* K=24: crypto_kem_dec frame is 34880 bytes */
 #define CRYPTO_BYTES 32
 
 #if KYBER_K == 2

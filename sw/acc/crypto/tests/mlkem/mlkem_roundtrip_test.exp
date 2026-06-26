@@ -1,0 +1,3 @@
+# roundtrip success: the encapsulation and decapsulation shared secrets are
+# equal, so their xor (left in w0) is all-zero.
+w0 = 0x0000000000000000000000000000000000000000000000000000000000000000

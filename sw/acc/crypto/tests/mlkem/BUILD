@@ -183,3 +183,34 @@ py_binary(
     for i in range(NTESTS)
     for params in MODE_FOR_PARAMS
 ]
+
+# checks that the encapsulation and decapsulation shared secrets match
+[
+    acc_sim_test(
+        name = params + "_roundtrip_test",
+        srcs = ["mlkem_roundtrip_test.s"],
+        copts = [
+            "-DKYBER_K=" + str(MODE_FOR_PARAMS[params]),
+        ],
+        exp = "mlkem_roundtrip_test.exp",
+        pqc = True,
+        stats = STATS,
+        deps = [
+            "//sw/acc/crypto/mlkem:basemul",
+            "//sw/acc/crypto/mlkem:cbd",
+            "//sw/acc/crypto/mlkem:consts",
+            "//sw/acc/crypto/mlkem:decap",
+            "//sw/acc/crypto/mlkem:encap",
+            "//sw/acc/crypto/mlkem:indcpa_enc",
+            "//sw/acc/crypto/mlkem:intt",
+            "//sw/acc/crypto/mlkem:keypair",
+            "//sw/acc/crypto/mlkem:kmac_send_msg",
+            "//sw/acc/crypto/mlkem:ntt",
+            "//sw/acc/crypto/mlkem:pack_ciphertext",
+            "//sw/acc/crypto/mlkem:pack_keys",
+            "//sw/acc/crypto/mlkem:poly",
+            "//sw/acc/crypto/mlkem:poly_gen_matrix",
+        ],
+    )
+    for params in MODE_FOR_PARAMS
+]

@@ -252,3 +252,45 @@ py_binary(
     )
     for params in MODE_FOR_PARAMS
 ]
+
+# Per-stage benchmark variants of the same self-contained roundtrip, used to get
+# per-operation cycle counts by subtraction:
+#   <p>_bench_keygen        -> keygen only            (cycles = M1)
+#   <p>_bench_keygen_encap  -> keygen + encap         (cycles = M2)
+#   <p>_bench               -> keygen + encap + decap (cycles = M3)
+#   keygen = M1 ; encap = M2 - M1 ; decap = M3 - M2
+[
+    acc_sim_test(
+        name = params + "_bench_" + stage[0],
+        srcs = ["mlkem_roundtrip_test.s"],
+        copts = [
+            "-DKYBER_K=" + str(MODE_FOR_PARAMS[params]),
+            "-DBENCH_STAGE=" + str(stage[1]),
+        ],
+        exp = "mlkem_roundtrip_test.exp",
+        pqc = True,
+        stats = True,
+        timeout = "eternal",
+        deps = [
+            "//sw/acc/crypto/mlkem:basemul",
+            "//sw/acc/crypto/mlkem:cbd",
+            "//sw/acc/crypto/mlkem:consts",
+            "//sw/acc/crypto/mlkem:decap",
+            "//sw/acc/crypto/mlkem:encap",
+            "//sw/acc/crypto/mlkem:indcpa_enc",
+            "//sw/acc/crypto/mlkem:intt",
+            "//sw/acc/crypto/mlkem:keypair",
+            "//sw/acc/crypto/mlkem:kmac_send_msg",
+            "//sw/acc/crypto/mlkem:ntt",
+            "//sw/acc/crypto/mlkem:pack_ciphertext",
+            "//sw/acc/crypto/mlkem:pack_keys",
+            "//sw/acc/crypto/mlkem:poly",
+            "//sw/acc/crypto/mlkem:poly_gen_matrix",
+        ],
+    )
+    for params in MODE_FOR_PARAMS
+    for stage in [
+        ("keygen", 1),
+        ("keygen_encap", 2),
+    ]
+]

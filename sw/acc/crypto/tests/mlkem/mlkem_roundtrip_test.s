@@ -30,6 +30,14 @@
 #define STACK_SIZE 40960
 #define CRYPTO_BYTES 32
 
+/* Benchmark stage selector (for per-operation cycle counts by subtraction):
+ *   1 = stop after keygen, 2 = stop after keygen+encap, 3 = full roundtrip.
+ * Default 3 keeps the normal roundtrip/bench behavior unchanged. Stages 1 and 2
+ * zero w0 before their early ecall so they still satisfy the w0==0 .exp. */
+#ifndef BENCH_STAGE
+#define BENCH_STAGE 3
+#endif
+
 #if KYBER_K == 24
   #define CRYPTO_PUBLICKEYBYTES  9248
   #define CRYPTO_SECRETKEYBYTES  18528
@@ -84,12 +92,24 @@ main:
   li   x14, KYBER_K
   jal  x1, crypto_kem_keypair
 
+#if BENCH_STAGE <= 1
+  /* benchmark: stop after keygen. */
+  bn.xor w0, w0, w0
+  ecall
+#endif
+
   /* step 2: encapsulation. reads ek and coins, writes ct and ss (= ss_enc).
    * crypto_kem_enc takes its inputs/outputs via the global labels, so we only
    * need to (re)set the parameter k. */
   jal  x1, _init_state
   li   x14, KYBER_K
   jal  x1, crypto_kem_enc
+
+#if BENCH_STAGE <= 2
+  /* benchmark: stop after keygen+encap. */
+  bn.xor w0, w0, w0
+  ecall
+#endif
 
   /* step 3: decapsulation. ct + dk -> ss_dec (= ss recovered from ciphertext). */
   la   x2, stack_end

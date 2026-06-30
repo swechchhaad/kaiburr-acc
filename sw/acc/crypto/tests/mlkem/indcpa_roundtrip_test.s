@@ -4,52 +4,41 @@
 
 /*
  * IND-CPA roundtrip test (no FO wrapper):
- *   indcpa_keypair(seed) -> pk, sk            (uses f8 noise for s, e)
- *   indcpa_enc(msg, pk, coins) -> ct          (uses f8 noise for r, e1, e2)
- *   indcpa_dec(ct, sk) -> msg'
+ *   crypto_kem_keypair(seed) -> ek, dk        (uses f8 noise for s, e)
+ *   indcpa_enc(msg, ek, coins) -> ct          (uses f8 noise for r, e1, e2)
+ *   indcpa_dec(ct, dk) -> msg'
  * check msg' == msg.
- *
- * This isolates the public-key encryption core from the Fujisaki-Okamoto
- * transform. The full KEM roundtrip fails (implicit reject => c' != c); the
- * only way that happens with correct, deterministic noise is a decryption
- * failure (msg' != msg). This test answers that directly:
- *   - passes  => decryption recovers the message; the bug is in the FO layer.
- *   - fails   => CPA decryption itself is broken with f8 noise.
- *
- * msg = 0xAA repeated (32 bytes); on success msg' equals it.
- */
 
 .section .text.start
 
 .globl main
 main:
-  /* ---- indcpa_keypair(seed=0^32) -> pk, sk ---- */
+  /* ---- crypto_kem_keypair(seed = 0^64) -> ek, dk (sets up its own fp) ---- */
   la   x2, stack_end
-  addi x3, x2, 0              /* fp = stack top (frames grow downward) */
   jal  x1, _init_state
   la   x10, kpseed
-  la   x11, pk
-  la   x12, sk
+  la   x11, ek
+  la   x12, dk
   li   x14, KYBER_K
-  jal  x1, indcpa_keypair
+  jal  x1, crypto_kem_keypair
 
-  /* ---- indcpa_enc(msg, pk, coins=0^32) -> ct ---- */
+  /* ---- indcpa_enc(msg, ek, coins = 0^32) -> ct ---- */
   la   x2, stack_end
-  addi x3, x2, 0
+  addi x3, x2, 0              /* fp = stack top */
   jal  x1, _init_state
   la   x10, msg
-  la   x11, pk
+  la   x11, ek                /* ek = IND-CPA pk */
   la   x12, coins
   la   x13, ct
   li   x14, KYBER_K
   jal  x1, indcpa_enc
 
-  /* ---- indcpa_dec(ct, sk) -> mout ---- */
+  /* ---- indcpa_dec(ct, dk) -> mout (dk starts with the IND-CPA sk) ---- */
   la   x2, stack_end
   addi x3, x2, 0
   jal  x1, _init_state
   la   x10, ct
-  la   x11, sk
+  la   x11, dk
   la   x13, mout
   li   x14, KYBER_K
   jal  x1, indcpa_dec
@@ -81,7 +70,7 @@ stack_end:
 
 .balign 32
 kpseed:
-  .zero 32
+  .zero 64
 
 .balign 32
 coins:
@@ -98,15 +87,15 @@ msg:
 mout:
   .zero 32
 
-/* KYBER_INDCPA_PUBLICKEYBYTES = K*384 + 32 = 9248 (K=24). */
+/* KYBER_PUBLICKEYBYTES = K*384 + 32 = 9248 (K=24); ek == IND-CPA pk. */
 .balign 32
-pk:
+ek:
   .zero 9248
 
-/* KYBER_INDCPA_SECRETKEYBYTES = K*384 = 9216 (K=24). */
+/* KYBER_SECRETKEYBYTES = 2*K*384 + 96 = 18528 (K=24); starts with IND-CPA sk. */
 .balign 32
-sk:
-  .zero 9216
+dk:
+  .zero 18528
 
 /* KYBER_INDCPA_BYTES (uncompressed) <= 9600; allocate with margin. */
 .balign 32

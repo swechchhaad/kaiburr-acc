@@ -231,6 +231,19 @@ acc_sim_test(
     ],
 )
 
+# f8 under MOD = 2r|2q (the encap epp condition the MOD=q tests never covered).
+acc_sim_test(
+    name = "f8_mod2q_test",
+    srcs = ["f8_mod2q_test.s"],
+    exp = "f8_mod2q_test.exp",
+    pqc = True,
+    stats = False,
+    deps = [
+        "//sw/acc/crypto/mlkem:cbd",
+        "//sw/acc/crypto/mlkem:consts",
+    ],
+)
+
 # Isolates the 256-byte SHAKE256 squeeze that f8 requires (crosses the 136-byte
 # rate boundary). Checks the raw squeezed bytes against a hashlib reference.
 acc_sim_test(

@@ -40,48 +40,58 @@
 
 .globl f8
 f8:
-    /* temporary: this is cbd2's exact body (centered binomial,
-       eta=2) under the f8 label, to isolate the SAMPLER/distribution from the
-       rest of the f8 feature (the 256-byte squeeze + unified poly_getnoise +
-       natural-order calling). cbd2 reads the first 128 of the 256 squeezed
-       bytes and ignores the rest, producing the SAME noise as the working
-       baseline. Interpretation:
-         - roundtrip PASSES => the 256-byte squeeze + plumbing is fine, bug is
-           the f8 sampler itself.
-         - roundtrip FAILS  => the squeeze/structure is the bug (e.g. the 2-block
-           squeeze corrupting a later Keccak op), independent of the sampler. */
+    /* index GPRs: input -> w0, output -> w2; mask constants in w3/w4/w5. */
     li x4, 0
-    li x5, 1
     li x6, 2
-    li x7, 3
-    li x8, 4
-    li x9, 5
 
-    la x17, cbd2_const
-    bn.lid x7, 0(x17++)
-    bn.lid x8, 0(x17++)
+    bn.not     w3, w31        /* w3 = 0xFFFF per 16-bit lane */
+    bn.shv.16H w3, w3 >> 8    /* w3 = 0x00FF */
+    bn.shv.16H w4, w3 >> 1    /* w4 = 0x007F */
+    bn.shv.16H w5, w3 >> 7    /* w5 = 0x0001 */
 
-    LOOPI 4, 19
-        bn.lid  x4, 0(x10++)
-        bn.and  w1, w0, w3
-        bn.rshi w0, w31, w0 >> 1
-        bn.and  w0, w0, w3
-        bn.add  w0, w0, w1
-        bn.and  w1, w0, w4
-        bn.rshi w0, w31, w0 >> 2
-        bn.and  w0, w0, w4
+    /* 8 input regs (256 bytes) -> 16 output regs (256 coeffs), natural order. */
+    LOOPI 8, 37
+        bn.lid       x4, 0(x10++)  /* w0 = 32 random bytes b0..b31 */
 
-        LOOPI 4,  9
-            LOOPI 16, 6
-                bn.rshi w6, w1, w6 >> 4
-                bn.rshi w7, w0, w7 >> 4
-                bn.rshi w6, w31, w6 >> 12
-                bn.rshi w7, w31, w7 >> 12
-                bn.rshi w1, w31, w1 >> 4
-                bn.rshi w0, w31, w0 >> 4
-            bn.subvm.16H w2, w6, w7
-            bn.sid x6, 0(x11++)
-        NOP
+        /* spread low 16 bytes b0..b15 into w1 lanes 0..15 (natural) */
+        LOOPI 16, 3
+            bn.rshi  w1, w0, w1 >> 8
+            bn.rshi  w1, w31, w1 >> 8
+            bn.rshi  w0, w31, w0 >> 8
+        bn.and       w6, w1, w5    /* b   = c & 1                          */
+        bn.and       w7, w1, w4    /* t   = c & 0x7F                       */
+        bn.addv.16H  w7, w7, w5    /* t  += 1                              */
+        bn.shv.16H   w7, w7 >> 7   /* ind = t >> 7  in {0,1}               */
+        bn.shv.16H   w8, w7 << 1   /* mag = 2*ind                          */
+        bn.addv.16H  w8, w8, w5    /* mag = 2*ind + 1                      */
+        bn.subv.16H  w8, w8, w6    /* mag = 2*ind + 1 - b   in {0,1,2}     */
+        bn.shv.16H   w6, w1 >> 7   /* s   = bit7    in {0,1}               */
+        bn.subv.16H  w6, w31, w6   /* m   = 0 - s   = 0x0000 / 0xFFFF      */
+        bn.subvm.16H w7, w31, w8   /* neg = (q - mag) mod q                */
+        bn.xor       w2, w8, w7    /* diff = mag ^ neg                     */
+        bn.and       w2, w2, w6    /* diff &= m                            */
+        bn.xor       w2, w8, w2    /* coeff = mag if s=0 else neg          */
+        bn.sid       x6, 0(x11++)
+
+        /* spread high 16 bytes b16..b31 (now low in w0) into w1 */
+        LOOPI 16, 3
+            bn.rshi  w1, w0, w1 >> 8
+            bn.rshi  w1, w31, w1 >> 8
+            bn.rshi  w0, w31, w0 >> 8
+        bn.and       w6, w1, w5
+        bn.and       w7, w1, w4
+        bn.addv.16H  w7, w7, w5
+        bn.shv.16H   w7, w7 >> 7
+        bn.shv.16H   w8, w7 << 1
+        bn.addv.16H  w8, w8, w5
+        bn.subv.16H  w8, w8, w6
+        bn.shv.16H   w6, w1 >> 7
+        bn.subv.16H  w6, w31, w6
+        bn.subvm.16H w7, w31, w8
+        bn.xor       w2, w8, w7
+        bn.and       w2, w2, w6
+        bn.xor       w2, w8, w2
+        bn.sid       x6, 0(x11++)
     ret
 
 #if 0 /* eta=3 CBD sampler removed for now */

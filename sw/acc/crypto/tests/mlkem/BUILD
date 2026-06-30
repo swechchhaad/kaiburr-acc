@@ -216,3 +216,39 @@ py_binary(
     )
     for params in MODE_FOR_PARAMS
 ]
+
+# benchmark: same self-contained keygen->encap->decap roundtrip, but with
+# execution stats enabled so the simulator dumps per-function cycle counts.
+# parse the test log with:
+#   python3 hw/ip/acc/util/acc_profile.py \
+#     bazel-testlogs/sw/acc/crypto/tests/mlkem/<name>/test.log
+[
+    acc_sim_test(
+        name = params + "_bench",
+        srcs = ["mlkem_roundtrip_test.s"],
+        copts = [
+            "-DKYBER_K=" + str(MODE_FOR_PARAMS[params]),
+        ],
+        exp = "mlkem_roundtrip_test.exp",
+        pqc = True,
+        stats = True,
+        timeout = "eternal",
+        deps = [
+            "//sw/acc/crypto/mlkem:basemul",
+            "//sw/acc/crypto/mlkem:cbd",
+            "//sw/acc/crypto/mlkem:consts",
+            "//sw/acc/crypto/mlkem:decap",
+            "//sw/acc/crypto/mlkem:encap",
+            "//sw/acc/crypto/mlkem:indcpa_enc",
+            "//sw/acc/crypto/mlkem:intt",
+            "//sw/acc/crypto/mlkem:keypair",
+            "//sw/acc/crypto/mlkem:kmac_send_msg",
+            "//sw/acc/crypto/mlkem:ntt",
+            "//sw/acc/crypto/mlkem:pack_ciphertext",
+            "//sw/acc/crypto/mlkem:pack_keys",
+            "//sw/acc/crypto/mlkem:poly",
+            "//sw/acc/crypto/mlkem:poly_gen_matrix",
+        ],
+    )
+    for params in MODE_FOR_PARAMS
+]

@@ -171,7 +171,7 @@ poly_getnoise_init:
  * @param[in]  x6: dmem_ptr to SHAKE256 results from `poly_getnoise_init`
  * @param[out] x11: dptr_output, dmem pointer to output polynomial
  *
- * clobbered registers: x4 to x11, x17, w0 to w8, w28 to w30
+ * clobbered registers: x4 to x11, x17, w0 to w8
  * clobbered flag groups: FG0
  */
 
@@ -186,16 +186,6 @@ poly_getnoise:
 
   bn.add w8, w0, w0
   jal    x1, f8
-
-  /* DEBUG TEE: copy this poly's f8 output [x11-512, x11) to dbg_noise.
-     Each call overwrites it, so after a full keygen dbg_noise holds the LAST
-     noise polynomial sampled (e[K-1]). Uses only already-clobbered regs. */
-  addi x9, x11, -512
-  la   x4, dbg_noise
-  li   x5, 0
-  LOOPI 16, 2
-    bn.lid x5, 0(x9++)
-    bn.sid x5, 0(x4++)
 
   ret
 
@@ -284,13 +274,3 @@ poly_tomont:
     bn.addvm.16H         w1, w1, w31
     bn.sid               x4, 0(x10++)
   ret
-
-.bss
-.balign 32
-.globl dbg_noise
-dbg_noise:
-.zero 512
-.balign 32
-.globl dbg_mp
-dbg_mp:
-.zero 512

@@ -40,11 +40,8 @@
 
 .globl f8
 f8:
-    /* f8 relies on w31 == 0 for its mask construction (bn.not below), its byte
-       spread (bn.rshi ... w31 ...) and its negations (bn.subvm ... w31 ...).
-       Callers in enc sample epp/ep right after ntt/intt/basemul, which leave
-       w31 dirty, so zero it here to be self-sufficient and restore the all-zero
-       convention. (cbd2 didn't need this: it loaded masks from memory.) */
+    /* zeroing w31 here here to be self-sufficient and restore the all-zero
+       convention. */
     bn.xor w31, w31, w31
 
     /* index GPRs: input -> w0, output -> w2; mask constants in w3/w4/w5. */

@@ -1,8 +1,0 @@
-# f8 under MOD = 2r|2q. Negative coefficients should be 2q - mag (congruent to
-# -mag mod q): -1 -> 2q-1 = 0x1A01, -2 -> 2q-2 = 0x1A00. Positive unchanged.
-#   w1: 0x00 -> +1     = 0x0001
-#   w2: 0x80 -> -1     = 0x1A01   (2q-1)
-#   w3: 0xff -> -2     = 0x1A00   (2q-2)
-w1 = 0x0001000100010001000100010001000100010001000100010001000100010001
-w2 = 0x1a011a011a011a011a011a011a011a011a011a011a011a011a011a011a011a01
-w3 = 0x1a001a001a001a001a001a001a001a001a001a001a001a001a001a001a001a00

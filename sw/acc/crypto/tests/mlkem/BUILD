@@ -245,3 +245,17 @@ acc_sim_test(
         "//sw/acc/crypto/mlkem:poly",
     ],
 )
+
+# Two 256-byte squeezes back-to-back: catches KMAC state leaking across
+# operations (which a single isolated squeeze cannot reveal).
+acc_sim_test(
+    name = "shake_resqueeze_test",
+    srcs = ["shake_resqueeze_test.s"],
+    exp = "shake_resqueeze_test.exp",
+    pqc = True,
+    stats = False,
+    deps = [
+        "//sw/acc/crypto/mlkem:cbd",
+        "//sw/acc/crypto/mlkem:poly",
+    ],
+)

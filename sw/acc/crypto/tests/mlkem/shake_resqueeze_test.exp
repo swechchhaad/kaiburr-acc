@@ -1,0 +1,9 @@
+# Two sequential 256-byte SHAKE256 squeezes.
+# buf1 = shake_256(0^32 || 0x00), buf2 = shake_256(0^32 || 0x01), little-endian words.
+# If buf1 (w10,w11) matches but buf2 (w12,w13,w14) does not, KMAC state is
+# leaking across operations -> the root cause of the roundtrip failure.
+w10 = 0x5a2cd5dc96eff5c51abe7636cef75a5806781c94cb983b5b870936e781cc3fc0
+w11 = 0xffe4dea5e1ec20211c45c2a69699839a58e8b1dc7ac8be34f04115f9530a7480
+w12 = 0x917bf33eadbbbde6639b0ed5f27a526b579ea0526bcfa64cfc080ec46f3e59d3
+w13 = 0x2e9c76358ba7af8bfc7f5802f15407629cc536a5ba0a4181c0eab3498c641204
+w14 = 0xe4d328620a577360a83304a0adf51e4fe377b50bee8ce2903af9ca582e0c5c8a

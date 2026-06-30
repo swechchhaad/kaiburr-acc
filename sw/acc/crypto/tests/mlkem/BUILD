@@ -231,6 +231,31 @@ acc_sim_test(
     ],
 )
 
+# NOISE CAPTURE (diagnostic): tees poly_getnoise output to dbg_noise during a
+# real keygen, then dumps it. Forced-fail .exp prints the actual flow noise.
+acc_sim_test(
+    name = "noise_capture_test",
+    srcs = ["noise_capture_test.s"],
+    copts = ["-DKYBER_K=24"],
+    exp = "noise_capture_test.exp",
+    pqc = True,
+    stats = False,
+    deps = [
+        "//sw/acc/crypto/mlkem:basemul",
+        "//sw/acc/crypto/mlkem:cbd",
+        "//sw/acc/crypto/mlkem:consts",
+        "//sw/acc/crypto/mlkem:indcpa_enc",
+        "//sw/acc/crypto/mlkem:intt",
+        "//sw/acc/crypto/mlkem:keypair",
+        "//sw/acc/crypto/mlkem:kmac_send_msg",
+        "//sw/acc/crypto/mlkem:ntt",
+        "//sw/acc/crypto/mlkem:pack_ciphertext",
+        "//sw/acc/crypto/mlkem:pack_keys",
+        "//sw/acc/crypto/mlkem:poly",
+        "//sw/acc/crypto/mlkem:poly_gen_matrix",
+    ],
+)
+
 # SHAKE256 256-byte squeeze AFTER a SHA3-512 op (mode switch) -- tests whether
 # the second SHAKE256 block (which f8 reads, cbd2 doesn't) is corrupted.
 acc_sim_test(

@@ -1,0 +1,8 @@
+# DIAGNOSTIC: forced-fail so the run prints the actual captured noise.
+# w0..w3 = first 64 coefficients of keygen's last e polynomial (raw f8, pre-NTT).
+# Valid f(8) lanes are only {0x0000,0x0001,0x0002,0x0cff,0x0d00}.
+# Compare the printed "Actual" values against that set.
+w0 = 0x0
+w1 = 0x0
+w2 = 0x0
+w3 = 0x0

@@ -1,0 +1,4 @@
+# IND-CPA roundtrip: msg' must equal msg = 0xAA repeated (32 bytes).
+# If w0 is all-0xaa, decryption recovers the message (FO layer is the bug).
+# Any other value => CPA decryption itself fails with f8 noise.
+w0 = 0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa

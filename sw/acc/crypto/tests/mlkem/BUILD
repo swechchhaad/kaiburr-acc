@@ -274,3 +274,29 @@ acc_sim_test(
         "//sw/acc/crypto/mlkem:poly",
     ],
 )
+
+# IND-CPA roundtrip (keypair -> encrypt -> decrypt), bypassing the FO wrapper.
+# Answers whether decryption recovers the message with f8 noise.
+acc_sim_test(
+    name = "indcpa_roundtrip_test",
+    srcs = ["indcpa_roundtrip_test.s"],
+    copts = ["-DKYBER_K=24"],
+    exp = "indcpa_roundtrip_test.exp",
+    pqc = True,
+    stats = False,
+    deps = [
+        "//sw/acc/crypto/mlkem:basemul",
+        "//sw/acc/crypto/mlkem:cbd",
+        "//sw/acc/crypto/mlkem:consts",
+        "//sw/acc/crypto/mlkem:decap",
+        "//sw/acc/crypto/mlkem:indcpa_enc",
+        "//sw/acc/crypto/mlkem:intt",
+        "//sw/acc/crypto/mlkem:keypair",
+        "//sw/acc/crypto/mlkem:kmac_send_msg",
+        "//sw/acc/crypto/mlkem:ntt",
+        "//sw/acc/crypto/mlkem:pack_ciphertext",
+        "//sw/acc/crypto/mlkem:pack_keys",
+        "//sw/acc/crypto/mlkem:poly",
+        "//sw/acc/crypto/mlkem:poly_gen_matrix",
+    ],
+)

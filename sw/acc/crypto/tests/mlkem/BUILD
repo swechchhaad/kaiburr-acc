@@ -231,6 +231,22 @@ acc_sim_test(
     ],
 )
 
+# SHAKE256 256-byte squeeze AFTER a SHA3-512 op (mode switch) -- tests whether
+# the second SHAKE256 block (which f8 reads, cbd2 doesn't) is corrupted.
+acc_sim_test(
+    name = "shake_after_sha3_test",
+    srcs = ["shake_after_sha3_test.s"],
+    exp = "shake_after_sha3_test.exp",
+    pqc = True,
+    stats = False,
+    deps = [
+        "//sw/acc/crypto/mlkem:cbd",
+        "//sw/acc/crypto/mlkem:consts",
+        "//sw/acc/crypto/mlkem:kmac_send_msg",
+        "//sw/acc/crypto/mlkem:poly",
+    ],
+)
+
 # poly_getnoise (f8) called from inside a hardware LOOP, like keygen/encap.
 acc_sim_test(
     name = "poly_getnoise_loop_test",

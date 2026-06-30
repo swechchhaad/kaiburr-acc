@@ -1,0 +1,8 @@
+# SHAKE256(0^33) 256-byte squeeze, run AFTER a SHA3-512 op (mode switch).
+# Reference is the clean shake_256(0^33) output (same as shake_squeeze_test).
+# If w0 matches but w4/w5/w7 differ, the SHA3->SHAKE256 switch corrupts the
+# second SHAKE256 block -- the block f8 reads and cbd2 does not.
+w0 = 0x5a2cd5dc96eff5c51abe7636cef75a5806781c94cb983b5b870936e781cc3fc0
+w4 = 0x333279e7c3c27db00946a986ba50728d11269a0734885e216a18c0e6840ab225
+w5 = 0x7c47f84ead2416c4836d6bb7d58f133ae17c7e4cb4068719c4178fea523c9c7b
+w7 = 0xffe4dea5e1ec20211c45c2a69699839a58e8b1dc7ac8be34f04115f9530a7480

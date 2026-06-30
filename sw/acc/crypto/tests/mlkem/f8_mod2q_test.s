@@ -31,9 +31,15 @@ main:
   bn.shv.8S w0, w16 << 1
   bn.wsrw   0x0, w0
 
-  la x10, in_00 ; la x11, out_00 ; jal x1, f8
-  la x10, in_80 ; la x11, out_80 ; jal x1, f8
-  la x10, in_ff ; la x11, out_ff ; jal x1, f8
+  la  x10, in_00
+  la  x11, out_00
+  jal x1, f8
+  la  x10, in_80
+  la  x11, out_80
+  jal x1, f8
+  la  x10, in_ff
+  la  x11, out_ff
+  jal x1, f8
 
   li     x4, 1
   la     x6, out_00

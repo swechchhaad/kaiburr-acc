@@ -31,20 +31,21 @@ main:
   la   x2, stack_end
   jal  x1, _init_state
 
-  /* ---- prior op: SHA3-512 over 32 bytes (a stand-in for hash_g) ---- */
-  addi  a1, zero, 32
-  slli  t0, a1, 5
-  addi  t0, t0, SHA3_512_CFG
-  csrrw zero, KECCAK_CFG_REG, t0
-  la    a0, msg32
-  addi  a1, zero, 32
+  /* ---- prior op: SHA3-512 over 32 bytes (a stand-in for hash_g) ----
+     a0=x10 (msg ptr), a1=x11 (len), t0=x5 (temp) -- numeric names only. */
+  addi  x11, x0, 32
+  slli  x5, x11, 5
+  addi  x5, x5, SHA3_512_CFG
+  csrrw x0, KECCAK_CFG_REG, x5
+  la    x10, msg32
+  addi  x11, x0, 32
   jal   x1, keccak_send_message
   /* read the 64-byte SHA3-512 digest, like hash_g does */
-  la    a2, hbuf
-  li    t0, 8
+  la    x12, hbuf
+  li    x5, 8
   LOOPI 2, 2
     bn.wsrr w8, 0xA
-    bn.sid  t0, 0(a2++)
+    bn.sid  x5, 0(x12++)
 
   /* ---- now SHAKE256(seed=0^32 || nonce=0) and squeeze 256 bytes ---- */
   la   x10, seed

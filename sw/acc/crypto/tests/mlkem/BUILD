@@ -231,6 +231,20 @@ acc_sim_test(
     ],
 )
 
+# poly_getnoise (f8) called from inside a hardware LOOP, like keygen/encap.
+acc_sim_test(
+    name = "poly_getnoise_loop_test",
+    srcs = ["poly_getnoise_loop_test.s"],
+    exp = "poly_getnoise_loop_test.exp",
+    pqc = True,
+    stats = False,
+    deps = [
+        "//sw/acc/crypto/mlkem:cbd",
+        "//sw/acc/crypto/mlkem:consts",
+        "//sw/acc/crypto/mlkem:poly",
+    ],
+)
+
 # f8 under MOD = 2r|2q (the encap epp condition the MOD=q tests never covered).
 acc_sim_test(
     name = "f8_mod2q_test",

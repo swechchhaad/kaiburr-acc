@@ -1,0 +1,5 @@
+# poly_getnoise (f8) inside a hardware LOOP, nonces 0 and 1, output word 0.
+# Same references as the straight-line poly_getnoise_test. If these match, the
+# enclosing-loop context does not corrupt f8.
+w10 = 0x0001000100010d0000000d0000000000000000000001000000000d0000000d00
+w11 = 0x00000d000d000001000000000d0000010d00000100010d000000000100000000

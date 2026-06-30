@@ -138,8 +138,8 @@ indcpa_keypair:
     add  t1, fp, a5
     addi a0, fp, STACK_NOISESEED
     sw   a2, STACK_NONCE(fp)
-    jal  x1, poly_getnoise_eta_init
-    jal  x1, poly_getnoise_eta_1
+    jal  x1, poly_getnoise_init
+    jal  x1, poly_getnoise
     addi a2, a2, 1
 
   bn.wsrr   w16, 0x0 /* w16 = MOD = R | Q */
@@ -231,8 +231,8 @@ indcpa_keypair:
     add  t1, fp, a5
     addi a0, fp, STACK_NOISESEED
     sw   a2, STACK_NONCE(fp)
-    jal  x1, poly_getnoise_eta_init
-    jal  x1, poly_getnoise_eta_1
+    jal  x1, poly_getnoise_init
+    jal  x1, poly_getnoise
     addi a2, a2, 1
 
   /* After cbd, w16 is still R | Q */

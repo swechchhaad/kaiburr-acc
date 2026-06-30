@@ -119,11 +119,10 @@ poly_tomsg:
   ret
 
 /*
- * Name:        poly_getnoise_eta_init
+ * Name:        poly_getnoise_init
  *
- * Description: Prepares for polynomial CBD sampling via either of
- *              `poly_getnoise_eta_1` or `poly_getnoise_eta_2` given a seed and
- *              a nonce by initializing a SHAKE256 operation.
+ * Description: Prepares for polynomial noise sampling via `poly_getnoise`
+ *              given a seed and a nonce by initializing a SHAKE256 operation.
  *
  * Flags: Clobbers FG0, has no meaning beyond the scope of this subroutine.
  *
@@ -134,8 +133,8 @@ poly_tomsg:
  * clobbered flag groups: None
  */
 
-.globl poly_getnoise_eta_init
-poly_getnoise_eta_init:
+.globl poly_getnoise_init
+poly_getnoise_init:
   /* Initialize a SHAKE256 operation. */
   addi  x5, x0, 33
   slli  x5, x5, 5
@@ -153,13 +152,14 @@ poly_getnoise_eta_init:
   ret
 
 /*
- * Name:        poly_getnoise_eta1
+ * Name:        poly_getnoise
  *
  * Description: Sample a polynomial deterministically from a seed and a nonce,
- *              with output polynomial close to centered binomial
- *              distribution with parameter KYBER_ETA1; this function assumes
- *              `poly_getnoise_eta_init` has been called first with the
- *              appropriate seed and nonce
+ *              with each coefficient drawn from f(8)
+ *              (see cbd.s). Assumes `poly_getnoise_init` has been called first
+ *              with the appropriate seed and nonce.
+ *
+ *              ML-KEM's eta1/eta2 distinction has been removed.
  *
  * Arguments:   - poly *r: pointer to output polynomial
  *              - const uint8_t *seed: pointer to input seed (of length KYBER_SYMBYTES bytes)
@@ -168,90 +168,24 @@ poly_getnoise_eta_init:
  * Flags: Clobbers FG0, has no meaning beyond the scope of this subroutine.
  *
  * @param[in]  w31: all-zero
- * @param[in]  x6: dmem_ptr to SHAKE256 results from `poly_getnoise_eta_init`
+ * @param[in]  x6: dmem_ptr to SHAKE256 results from `poly_getnoise_init`
  * @param[out] x11: dptr_output, dmem pointer to output polynomial
  *
- * clobbered registers: x4 to x6, x10 to x11, x17, x19 to x21, w0 to w9, w11, w20 to w21
+ * clobbered registers: x4 to x11, x17, w0 to w8, w28 to w30
  * clobbered flag groups: FG0
  */
 
-.globl poly_getnoise_eta_1
-poly_getnoise_eta_1:
-  /* eta1=3 removed.
-   * always use the eta=2 CBD sampler (will come back to change this later) */
-#if 0
-  li  x28, 2
-  beq x14, x28, poly_getnoise_cbd3
-#endif
-  jal x0, poly_getnoise_cbd2
-
-#if 0 /* eta1=3 sampler removed for now */
-/*
- * Name:        poly_getnoise_cbd3
- *
- * Description: Sample a polynomial deterministically from a seed and a nonce,
- *              from the centered binomial distribution with parameter eta=3.
- *              Used by ML-KEM-512 for eta1 sampling. Assumes
- *              `poly_getnoise_eta_init` has been called first with the
- *              appropriate seed and nonce.
- *
- * @param[in]  w31: all-zero
- * @param[in]  x6: dmem_ptr to SHAKE256 results from `poly_getnoise_eta_init`
- * @param[out] x11: dptr_output, dmem pointer to output polynomial
- *
- * clobbered registers: x4 to x6, x10 to x11, x17, x19 to x21, w0 to w9, w11, w20 to w21
- * clobbered flag groups: FG0
- */
-poly_getnoise_cbd3:
+.globl poly_getnoise
+poly_getnoise:
   addi x10, x6, 0
 
   li x5, 8
-  LOOPI 6, 2
+  LOOPI 8, 2
     bn.wsrr w8, 0xA /* KECCAK_DIGEST */
-    bn.sid  x5, 0(x6++) /* Store into buffer */
+    bn.sid  x5, 0(x6++) /* Store into buffer (256 bytes for f(8)) */
 
   bn.add w8, w0, w0
-  jal    x1, cbd3
-
-  ret
-#endif
-
-/*
- * Name:        poly_getnoise_eta2
- *
- * Description: Sample a polynomial deterministically from a seed and a nonce,
- *              from the centered binomial distribution with parameter eta=2.
- *              Used by ML-KEM-512/768/1024 for eta2 sampling, and by
- *              ML-KEM-768/1024 for eta1 sampling. Assumes
- *              `poly_getnoise_eta_init` has been called first with the
- *              appropriate seed and nonce.
- *
- * Arguments:   - poly *r: pointer to output polynomial
- *              - const uint8_t *seed: pointer to input seed (of length KYBER_SYMBYTES bytes)
- *              - uint8_t nonce: one-byte input nonce
- *
- * Flags: Clobbers FG0, has no meaning beyond the scope of this subroutine.
- *
- * @param[in]  w31: all-zero
- * @param[in]  x6: dmem_ptr to SHAKE256 results from `poly_getnoise_eta_init`
- * @param[out] x11: dptr_output, dmem pointer to output polynomial
- *
- * clobbered registers: x4 to x11, x17, w0 to w4, w6 to w8
- * clobbered flag groups: FG0
- */
-
-.globl poly_getnoise_eta_2
-poly_getnoise_eta_2:
-poly_getnoise_cbd2:
-  addi x10, x6, 0
-
-  li x5, 8
-  LOOPI 4, 2
-    bn.wsrr w8, 0xA /* KECCAK_DIGEST */
-    bn.sid  x5, 0(x6++) /* Store into buffer */
-
-  bn.add w8, w0, w0
-  jal    x1, cbd2
+  jal    x1, f8
 
   ret
 

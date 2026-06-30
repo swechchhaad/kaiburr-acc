@@ -104,14 +104,14 @@ indcpa_enc:
   la  a2, poly_k
   jal x1, poly_frommsg
 
-  /* Prepare for initial `poly_getnoise_eta_1` call, performing the SHAKE
+  /* Prepare for initial `poly_getnoise` call, performing the SHAKE
      computation during `unpack_pk` */
   la     t0, dptr_coins
   lw     a0, 0(t0)
   la     a3, nonce
   bn.xor w0, w0, w0
   bn.sid x0, 0(a3)
-  jal    x1, poly_getnoise_eta_init
+  jal    x1, poly_getnoise_init
 
   /*** unpack_pk ***/
   addi a0, t2, 0
@@ -136,13 +136,13 @@ indcpa_enc:
     la   t1, poly_v
     add  a0, x0, s9
     add  a1, x0, s10
-    jal  x1, poly_getnoise_eta_1
+    jal  x1, poly_getnoise
 
     add  a0, x0, s9
     add  a3, x0, s8
     addi s11, s11, 1
     sw   s11, 0(s8)
-    jal  x1, poly_getnoise_eta_init
+    jal  x1, poly_getnoise_init
 
     bn.wsrr   w16, 0x0 /* w16 = R | Q */
     bn.shv.8S w0, w16 << 1 /* w0 = 2*R | 2*Q */
@@ -161,7 +161,7 @@ indcpa_enc:
   add  a0, x0, s9
   add  a1, x0, s10
   add  a3, x0, s8
-  jal  x1, poly_getnoise_eta_1
+  jal  x1, poly_getnoise
 
   bn.wsrr   w16, 0x0 /* w16 = R | Q */
   bn.shv.8S w0, w16 << 1 /* w0 = 2*R | 2*Q */
@@ -191,7 +191,7 @@ indcpa_enc:
   slli a2, x14, 1
   la   a3, nonce
   sw   a2, 0(a3)
-  jal  x1, poly_getnoise_eta_init
+  jal  x1, poly_getnoise_init
 
   /* After basemul, w16 is still R | Q and MOD is still 2*R | 2*Q */
   /*** INTT v ***/
@@ -204,7 +204,7 @@ indcpa_enc:
   /*** CBD epp ***/
   la   a1, epp
   la   t1, poly_tmp
-  jal  x1, poly_getnoise_eta_2
+  jal  x1, poly_getnoise
 
   /* Prepare for the first call to poly_gen_matrix. */
   la     a0, seed
@@ -335,13 +335,13 @@ _skip_empty_basemul_loop_last: /* RESEARCH: K=2 skip target removed. */
 
   /* (End of public key rejection sampling) */
 
-  /* Prepare for initial `poly_getnoise_eta_2` call, performing the SHAKE
+  /* Prepare for initial `poly_getnoise` call, performing the SHAKE
      computation during `unpack_pk` */
   la   t0, dptr_coins
   lw   a0, 0(t0)
   la   a3, nonce
   sw   x14, 0(a3)
-  jal  x1, poly_getnoise_eta_init
+  jal  x1, poly_getnoise_init
 
   /* After basemul, w16 is still R | Q and MOD is still 2*R | 2*Q */
   /*** INTT ***/
@@ -366,12 +366,12 @@ _skip_empty_basemul_loop_last: /* RESEARCH: K=2 skip target removed. */
     la   t1, poly_tmp
     add  a0, x0, s3
     add  a1, x0, a5
-    jal  x1, poly_getnoise_eta_2
+    jal  x1, poly_getnoise
 
     add  a0, x0, s3
     addi s2, s2, 1
     sw   s2, 0(a3)
-    jal  x1, poly_getnoise_eta_init
+    jal  x1, poly_getnoise_init
 
     add  a0, x0, a6
     add  a1, x0, a5
@@ -384,7 +384,7 @@ _skip_empty_basemul_loop_last: /* RESEARCH: K=2 skip target removed. */
   la   t1, poly_tmp
   add  a0, x0, s3
   add  a1, x0, a5
-  jal  x1, poly_getnoise_eta_2
+  jal  x1, poly_getnoise
 
   add  a0, x0, a6
   add  a1, x0, a5

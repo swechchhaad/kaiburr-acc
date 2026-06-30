@@ -7,11 +7,9 @@
 .text
 
 /*
- * cbd2
+ * f8
  *
- * NOTE: this keeps the name `cbd2` so it remains a drop-in for
- *       `poly_getnoise_cbd2` in poly.s, but it is obvious that it NO LONGER
- *       samples CBD. it samples the the distribution f(n) with
+ *       this samples the distribution f(n) with
  *       n = 8, per coefficient:
  *           draw 8 random bits b0..b7
  *           sign      = (-1)^b7
@@ -34,13 +32,13 @@
  * @param[in]  x10: dptr_input, dmem pointer to input byte array
  * @param[in]  x11: dptr_output, dmem pointer to output
  * @param[in]  w31: all-zero
- * @param[in]  MOD: low 16-bit lane = q (already set when cbd2 is reached)
+ * @param[in]  MOD: low 16-bit lane = q (already set when f8 is reached)
  *
  * clobbered registers: x4-x9, w0-w8, w28-w30
  */
 
-.globl cbd2
-cbd2:
+.globl f8
+f8:
     /* index GPRs for register-indirect load/store. */
     li x4, 0                  /* bn.lid x4 -> load into w0  */
     li x5, 1                  /* bn.sid x5 -> store from w1 */

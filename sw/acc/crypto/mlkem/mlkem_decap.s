@@ -160,6 +160,16 @@ indcpa_dec:
 
   /*** poly_tomsg ***/
   addi a0, a1, POLY
+
+  /* DEBUG TEE: copy the pre-threshold message poly mp (= v - s^T u) to dbg_mp.
+     a0 points at mp; preserve it for tomsg. Uses scratch regs tomsg clobbers. */
+  addi x9, a0, 0
+  la   x7, dbg_mp
+  li   x5, 0
+  LOOPI 16, 2
+    bn.lid x5, 0(x9++)
+    bn.sid x5, 0(x7++)
+
   la   a1, modulus_over_2
   lw   a2, STACK_DEC_M_ADDR(fp)
   la   a3, const_1290167

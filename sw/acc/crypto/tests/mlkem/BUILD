@@ -244,6 +244,7 @@ acc_sim_test(
         "//sw/acc/crypto/mlkem:basemul",
         "//sw/acc/crypto/mlkem:cbd",
         "//sw/acc/crypto/mlkem:consts",
+        "//sw/acc/crypto/mlkem:decap",
         "//sw/acc/crypto/mlkem:indcpa_enc",
         "//sw/acc/crypto/mlkem:intt",
         "//sw/acc/crypto/mlkem:keypair",

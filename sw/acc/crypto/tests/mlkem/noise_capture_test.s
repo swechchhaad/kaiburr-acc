@@ -3,29 +3,34 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 
 /*
- * NOISE CAPTURE (diagnostic). poly_getnoise was instrumented (poly.s) to tee
- * every f8 output into the global `dbg_noise`. After a full crypto_kem_keypair,
- * dbg_noise holds the LAST noise polynomial actually produced in the real
- * interleaved flow (keygen's e[K-1], raw f8 output BEFORE the NTT).
+ * DECRYPTION-ERROR CAPTURE (diagnostic).
  *
- * This is the one thing never observed directly: the noise as it exists in DMEM
- * during the failing run. We dump its first 64 coefficients.
+ * Runs the full IND-CPA roundtrip with f8 noise:
+ *   crypto_kem_keypair -> ek, dk
+ *   indcpa_enc(msg=0xAA, ek) -> ct
+ *   indcpa_dec(ct, dk) -> mout
  *
- * VALID f(8) coefficients (MOD = r|q) are exactly {0,1,2,q-2,q-1}, i.e. each
- * 16-bit lane must be one of: 0x0000, 0x0001, 0x0002, 0x0cff, 0x0d00.
- *   - If every lane is in that set  -> the flow noise is correct f(8); the bug
- *     is NOT corruption of the noise (look downstream / at enc).
- *   - If any lane is something else -> the interleaved flow corrupts f8's
- *     output; that corruption is the bug.
+ * indcpa_dec is instrumented (mlkem_decap.s) to tee the PRE-THRESHOLD message
+ * polynomial  mp = v - s^T u  into the global `dbg_mp` before poly_tomsg runs.
+ * We also keep the noise tee, so dbg_noise holds the last f8 noise poly.
  *
- * The .exp deliberately expects zero so the run FAILS and prints the actual
- * captured values for inspection.
+ * Interpreting mp (MOD = r|q, q = 3329, q/2 ~ 1664):
+ *   msg = 0xAA -> message bits alternate, so a CORRECT mp has coefficients
+ *   tightly clustered at two values: ~0x0000 (bit 0) and ~0x0680 (1664, bit 1),
+ *   each +/- a small error (< q/4 = 832 = 0x340). Lanes near 0 or near 0x0680
+ *   => decryption math is fine (bug is in message decode).
+ *   Lanes scattered across the whole range [0, q) => the secret/ciphertext
+ *   reaching decrypt is structurally wrong (the real bug).
+ *
+ * w0..w3 = mp coeffs 0..63 ; w4 = dbg_noise word 0 (sanity: noise still f(8)).
+ * .exp forces zero so the run FAILS and prints the actual captured values.
  */
 
 .section .text.start
 
 .globl main
 main:
+  /* ---- crypto_kem_keypair(seed = 0^64) -> ek, dk ---- */
   la   x2, stack_end
   jal  x1, _init_state
   la   x10, kpseed
@@ -34,22 +39,46 @@ main:
   li   x14, KYBER_K
   jal  x1, crypto_kem_keypair
 
-  /* dump dbg_noise (last keygen e poly, raw f8 noise, pre-NTT) */
-  la     x6, dbg_noise
+  /* ---- indcpa_enc(msg = 0xAA, ek, coins = 0^32) -> ct ---- */
+  la   x2, stack_end
+  addi x3, x2, 0
+  jal  x1, _init_state
+  la   x10, msg
+  la   x11, ek
+  la   x12, coins
+  la   x13, ct
+  li   x14, KYBER_K
+  jal  x1, indcpa_enc
+
+  /* ---- indcpa_dec(ct, dk) -> mout (tees mp to dbg_mp) ---- */
+  la   x2, stack_end
+  addi x3, x2, 0
+  jal  x1, _init_state
+  la   x10, ct
+  la   x11, dk
+  la   x13, mout
+  li   x14, KYBER_K
+  jal  x1, indcpa_dec
+
+  /* dump the decryption error poly mp (coeffs 0..63) */
+  la     x6, dbg_mp
   li     x4, 0
-  bn.lid x4, 0(x6)            /* w0 = coeffs 0-15  */
-  la     x6, dbg_noise
+  bn.lid x4, 0(x6)            /* w0 = mp coeffs 0-15  */
+  la     x6, dbg_mp
   addi   x6, x6, 32
   li     x4, 1
-  bn.lid x4, 0(x6)            /* w1 = coeffs 16-31 */
-  la     x6, dbg_noise
+  bn.lid x4, 0(x6)            /* w1 = mp coeffs 16-31 */
+  la     x6, dbg_mp
   addi   x6, x6, 64
   li     x4, 2
-  bn.lid x4, 0(x6)            /* w2 = coeffs 32-47 */
-  la     x6, dbg_noise
+  bn.lid x4, 0(x6)            /* w2 = mp coeffs 32-47 */
+  la     x6, dbg_mp
   addi   x6, x6, 96
   li     x4, 3
-  bn.lid x4, 0(x6)            /* w3 = coeffs 48-63 */
+  bn.lid x4, 0(x6)            /* w3 = mp coeffs 48-63 */
+  la     x6, dbg_noise
+  li     x4, 4
+  bn.lid x4, 0(x6)            /* w4 = last noise poly word 0 (sanity) */
   ecall
 
 _init_state:
@@ -75,9 +104,27 @@ kpseed:
   .zero 64
 
 .balign 32
+coins:
+  .zero 32
+
+.balign 32
+msg:
+.rept 8
+  .word 0xaaaaaaaa
+.endr
+
+.balign 32
+mout:
+  .zero 32
+
+.balign 32
 ek:
   .zero 9248
 
 .balign 32
 dk:
   .zero 18528
+
+.balign 32
+ct:
+  .zero 9728

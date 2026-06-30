@@ -290,3 +290,7 @@ poly_tomont:
 .globl dbg_noise
 dbg_noise:
 .zero 512
+.balign 32
+.globl dbg_mp
+dbg_mp:
+.zero 512

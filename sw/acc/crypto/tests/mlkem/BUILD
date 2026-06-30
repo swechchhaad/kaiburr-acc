@@ -216,3 +216,17 @@ py_binary(
     )
     for params in MODE_FOR_PARAMS
 ]
+
+# Unit test for the f8 noise sampler in isolation (no full KEM, no kyber-py).
+# Feeds known input bytes to f8 and checks the resulting coefficients.
+acc_sim_test(
+    name = "f8_test",
+    srcs = ["f8_test.s"],
+    exp = "f8_test.exp",
+    pqc = True,
+    stats = False,
+    deps = [
+        "//sw/acc/crypto/mlkem:cbd",
+        "//sw/acc/crypto/mlkem:consts",
+    ],
+)

@@ -1,0 +1,16 @@
+# f8 sampler unit test: each register holds one coefficient repeated across all
+# 16 lanes (q = 3329).
+#   w1: input 0x00 -> +1      = 0x0001
+#   w2: input 0x80 -> -1      = q-1 = 0x0d00
+#   w3: input 0x7f -> +2      = 0x0002
+#   w4: input 0xff -> -2      = q-2 = 0x0cff
+#   w5: input 0x01 ->  0      = 0x0000
+#   w6: mixed even byte 0x00  -> +1 = 0x0001
+#   w7: mixed odd  byte 0xff  -> -2 = 0x0cff
+w1 = 0x0001000100010001000100010001000100010001000100010001000100010001
+w2 = 0x0d000d000d000d000d000d000d000d000d000d000d000d000d000d000d000d00
+w3 = 0x0002000200020002000200020002000200020002000200020002000200020002
+w4 = 0x0cff0cff0cff0cff0cff0cff0cff0cff0cff0cff0cff0cff0cff0cff0cff0cff
+w5 = 0x0000000000000000000000000000000000000000000000000000000000000000
+w6 = 0x0001000100010001000100010001000100010001000100010001000100010001
+w7 = 0x0cff0cff0cff0cff0cff0cff0cff0cff0cff0cff0cff0cff0cff0cff0cff0cff

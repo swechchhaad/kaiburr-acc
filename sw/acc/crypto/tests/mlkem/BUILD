@@ -259,3 +259,18 @@ acc_sim_test(
         "//sw/acc/crypto/mlkem:poly",
     ],
 )
+
+# The REAL poly_getnoise (init -> squeeze -> f8) wired together, as the KEM
+# calls it, with MOD set. The integration prior tests never exercised.
+acc_sim_test(
+    name = "poly_getnoise_test",
+    srcs = ["poly_getnoise_test.s"],
+    exp = "poly_getnoise_test.exp",
+    pqc = True,
+    stats = False,
+    deps = [
+        "//sw/acc/crypto/mlkem:cbd",
+        "//sw/acc/crypto/mlkem:consts",
+        "//sw/acc/crypto/mlkem:poly",
+    ],
+)

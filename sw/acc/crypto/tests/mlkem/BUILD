@@ -230,3 +230,18 @@ acc_sim_test(
         "//sw/acc/crypto/mlkem:consts",
     ],
 )
+
+# Isolates the 256-byte SHAKE256 squeeze that f8 requires (crosses the 136-byte
+# rate boundary). Checks the raw squeezed bytes against a hashlib reference.
+acc_sim_test(
+    name = "shake_squeeze_test",
+    srcs = ["shake_squeeze_test.s"],
+    exp = "shake_squeeze_test.exp",
+    pqc = True,
+    stats = False,
+    deps = [
+        # poly.s provides poly_getnoise_init; it references f8 (in :cbd).
+        "//sw/acc/crypto/mlkem:cbd",
+        "//sw/acc/crypto/mlkem:poly",
+    ],
+)

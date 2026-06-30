@@ -45,20 +45,26 @@ f8:
     li x4, 0                  /* bn.lid x4 -> w0 (input)  */
     li x6, 2                  /* bn.sid x6 -> w2 (output) */
 
-    /* Build the per-lane masks in low registers:
-       w3 = 0x00FF (low byte / even-byte mask), w4 = 0x007F (low 7 bits),
-       w5 = 0x0001 (bit 0, and the constant 1). */
+    /* Build the per-lane mask constants in low registers:
+       w4 = 0x007F (low 7 bits), w5 = 0x0001 (bit 0, and the constant 1). */
     bn.not     w3, w31        /* w3 = 0xFFFF per 16-bit lane */
     bn.shv.16H w3, w3 >> 8    /* w3 = 0x00FF */
     bn.shv.16H w4, w3 >> 1    /* w4 = 0x007F */
     bn.shv.16H w5, w3 >> 7    /* w5 = 0x0001 */
 
-    /* 8 input regs (256 bytes) -> 16 output regs (256 coeffs). */
-    LOOPI 8, 31
-        bn.lid       x4, 0(x10++)  /* w0 = 32 random bytes (32 coeffs) */
+    /* 8 input regs (256 bytes) -> 16 output regs (256 coeffs), natural order.
+       Each input word holds 32 bytes b0..b31. We spread 16 bytes at a time into
+       the low 8 bits of 16 lanes using the same bn.rshi shift-in idiom cbd2 uses, 
+       then run the f8 core per lane. */
+    LOOPI 8, 37
+        bn.lid       x4, 0(x10++)  /* w0 = 32 random bytes b0..b31 */
 
-        /* ---- even bytes: coefficient sits in low 8 bits of each lane ---- */
-        bn.and       w1, w0, w3    /* c   = byte & 0x00FF                  */
+        /* ---- spread low 16 bytes b0..b15 into w1 lanes 0..15 ---- */
+        LOOPI 16, 3
+            bn.rshi  w1, w0, w1 >> 8   /* bring next byte of w0 into top of w1 */
+            bn.rshi  w1, w31, w1 >> 8  /* drop it to the bottom of a 16-bit lane */
+            bn.rshi  w0, w31, w0 >> 8  /* consume that byte from w0 */
+        /* CORE: w1 (one byte per lane) -> w2 (one coeff per lane) */
         bn.and       w6, w1, w5    /* b   = c & 1                          */
         bn.and       w7, w1, w4    /* t   = c & 0x7F                       */
         bn.addv.16H  w7, w7, w5    /* t  += 1                              */
@@ -72,10 +78,13 @@ f8:
         bn.xor       w2, w8, w7    /* diff = mag ^ neg                     */
         bn.and       w2, w2, w6    /* diff &= m                            */
         bn.xor       w2, w8, w2    /* coeff = mag if s=0 else neg, in [0,q)*/
-        bn.sid       x6, 0(x11++)  /* store 16 coeffs */
+        bn.sid       x6, 0(x11++)  /* store 16 coeffs (natural positions)  */
 
-        /* ---- odd bytes: shift each lane down so high byte becomes the coeff -- */
-        bn.shv.16H   w1, w0 >> 8   /* c = byte >> 8 */
+        /* ---- spread high 16 bytes b16..b31 (now low in w0) into w1 ---- */
+        LOOPI 16, 3
+            bn.rshi  w1, w0, w1 >> 8
+            bn.rshi  w1, w31, w1 >> 8
+            bn.rshi  w0, w31, w0 >> 8
         bn.and       w6, w1, w5
         bn.and       w7, w1, w4
         bn.addv.16H  w7, w7, w5

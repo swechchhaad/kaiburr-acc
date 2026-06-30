@@ -34,61 +34,62 @@
  * @param[in]  w31: all-zero
  * @param[in]  MOD: low 16-bit lane = q (already set when f8 is reached)
  *
- * clobbered registers: x4-x9, w0-w8, w28-w30
+ * clobbered registers: x4, x6, w0-w8
+ *
  */
 
 .globl f8
 f8:
-    /* index GPRs for register-indirect load/store. */
-    li x4, 0                  /* bn.lid x4 -> load into w0  */
-    li x5, 1                  /* bn.sid x5 -> store from w1 */
+    /* Set up wide registers for input and intermediate states:
+       input -> w0, output -> w2; constants live in the low regs w3, w4, w5. */
+    li x4, 0                  /* bn.lid x4 -> w0 (input)  */
+    li x6, 2                  /* bn.sid x6 -> w2 (output) */
 
-    /* build per-lane masks inline from the all-zero reg (no const table):
-       w30 = 0x00FF (low byte / C_FF), w29 = 0x007F (low 7 bits / C_LOW7),
-       w28 = 0x0001 (bit 0 and the constant 1 / C_ONE).                      */
-    bn.not     w30, w31           /* w30 = 0xFFFF per 16-bit lane */
-    bn.shv.16H w30, w30 >> 8      /* w30 = 0x00FF */
-    bn.shv.16H w29, w30 >> 1      /* w29 = 0x007F */
-    bn.shv.16H w28, w30 >> 7      /* w28 = 0x0001 */
+    /* Build the per-lane masks in low registers:
+       w3 = 0x00FF (low byte / even-byte mask), w4 = 0x007F (low 7 bits),
+       w5 = 0x0001 (bit 0, and the constant 1). */
+    bn.not     w3, w31        /* w3 = 0xFFFF per 16-bit lane */
+    bn.shv.16H w3, w3 >> 8    /* w3 = 0x00FF */
+    bn.shv.16H w4, w3 >> 1    /* w4 = 0x007F */
+    bn.shv.16H w5, w3 >> 7    /* w5 = 0x0001 */
 
     /* 8 input regs (256 bytes) -> 16 output regs (256 coeffs). */
     LOOPI 8, 31
-        bn.lid     x4, 0(x10++)   /* w0 = 32 random bytes */
+        bn.lid       x4, 0(x10++)  /* w0 = 32 random bytes (32 coeffs) */
 
         /* ---- even bytes: coefficient sits in low 8 bits of each lane ---- */
-        bn.and     w1, w0, w30    /* c = byte & 0x00FF */
-        /* CORE: w1(c) -> w1(coeff) */
-        bn.and       w2, w1, w28  /* b   = c & 1                         */
-        bn.and       w3, w1, w29  /* t   = c & 0x7F                      */
-        bn.addv.16H  w3, w3, w28  /* t  += 1                             */
-        bn.shv.16H   w3, w3 >> 7  /* ind = t >> 7  in {0,1}  (b0..b6 all-ones) */
-        bn.shv.16H   w4, w3 << 1  /* mag = 2*ind                         */
-        bn.addv.16H  w4, w4, w28  /* mag = 2*ind + 1                     */
-        bn.subv.16H  w4, w4, w2   /* mag = 2*ind + 1 - b   in {0,1,2}    */
-        bn.shv.16H   w5, w1 >> 7  /* s   = bit7    in {0,1}              */
-        bn.subv.16H  w6, w31, w5  /* m   = 0 - s   = 0x0000 / 0xFFFF     */
-        bn.subvm.16H w7, w31, w4  /* neg = (q - mag) mod q               */
-        bn.xor       w8, w4, w7   /* diff = mag ^ neg                    */
-        bn.and       w8, w8, w6   /* diff &= m                           */
-        bn.xor       w1, w4, w8   /* coeff = mag if s=0 else neg, in [0,q) */
-        bn.sid     x5, 0(x11++)   /* store 16 coeffs */
+        bn.and       w1, w0, w3    /* c   = byte & 0x00FF                  */
+        bn.and       w6, w1, w5    /* b   = c & 1                          */
+        bn.and       w7, w1, w4    /* t   = c & 0x7F                       */
+        bn.addv.16H  w7, w7, w5    /* t  += 1                              */
+        bn.shv.16H   w7, w7 >> 7   /* ind = t >> 7  in {0,1} (b0..b6 all 1)*/
+        bn.shv.16H   w8, w7 << 1   /* mag = 2*ind                          */
+        bn.addv.16H  w8, w8, w5    /* mag = 2*ind + 1                      */
+        bn.subv.16H  w8, w8, w6    /* mag = 2*ind + 1 - b   in {0,1,2}     */
+        bn.shv.16H   w6, w1 >> 7   /* s   = bit7    in {0,1}               */
+        bn.subv.16H  w6, w31, w6   /* m   = 0 - s   = 0x0000 / 0xFFFF      */
+        bn.subvm.16H w7, w31, w8   /* neg = (q - mag) mod q                */
+        bn.xor       w2, w8, w7    /* diff = mag ^ neg                     */
+        bn.and       w2, w2, w6    /* diff &= m                            */
+        bn.xor       w2, w8, w2    /* coeff = mag if s=0 else neg, in [0,q)*/
+        bn.sid       x6, 0(x11++)  /* store 16 coeffs */
 
         /* ---- odd bytes: shift each lane down so high byte becomes the coeff -- */
-        bn.shv.16H w1, w0 >> 8    /* c = byte >> 8 */
-        bn.and       w2, w1, w28
-        bn.and       w3, w1, w29
-        bn.addv.16H  w3, w3, w28
-        bn.shv.16H   w3, w3 >> 7
-        bn.shv.16H   w4, w3 << 1
-        bn.addv.16H  w4, w4, w28
-        bn.subv.16H  w4, w4, w2
-        bn.shv.16H   w5, w1 >> 7
-        bn.subv.16H  w6, w31, w5
-        bn.subvm.16H w7, w31, w4
-        bn.xor       w8, w4, w7
-        bn.and       w8, w8, w6
-        bn.xor       w1, w4, w8
-        bn.sid     x5, 0(x11++)
+        bn.shv.16H   w1, w0 >> 8   /* c = byte >> 8 */
+        bn.and       w6, w1, w5
+        bn.and       w7, w1, w4
+        bn.addv.16H  w7, w7, w5
+        bn.shv.16H   w7, w7 >> 7
+        bn.shv.16H   w8, w7 << 1
+        bn.addv.16H  w8, w8, w5
+        bn.subv.16H  w8, w8, w6
+        bn.shv.16H   w6, w1 >> 7
+        bn.subv.16H  w6, w31, w6
+        bn.subvm.16H w7, w31, w8
+        bn.xor       w2, w8, w7
+        bn.and       w2, w2, w6
+        bn.xor       w2, w8, w2
+        bn.sid       x6, 0(x11++)
     ret
 
 #if 0 /* eta=3 CBD sampler removed for now */

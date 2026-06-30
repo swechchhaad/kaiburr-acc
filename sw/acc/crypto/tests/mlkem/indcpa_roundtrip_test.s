@@ -8,6 +8,12 @@
  *   indcpa_enc(msg, ek, coins) -> ct          (uses f8 noise for r, e1, e2)
  *   indcpa_dec(ct, dk) -> msg'
  * check msg' == msg.
+ *
+ * For ML-KEM the KEM public key ek IS the IND-CPA pk, and dk begins with the
+ * IND-CPA sk, so they feed straight into indcpa_enc/dec. msg = 0xAA repeated;
+ * on success msg' equals it. passes => decryption works (bug is in the FO
+ * layer); fails => CPA decryption itself is broken with f8 noise.
+ */
 
 .section .text.start
 

@@ -15,6 +15,7 @@ package(default_visibility = ["//visibility:public"])
 
 MODE_FOR_PARAMS = {
     "kaiburr8": 24,
+    "kaiburr6": 18,
 }
 
 NTESTS = 3

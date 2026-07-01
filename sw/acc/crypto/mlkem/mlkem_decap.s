@@ -342,7 +342,7 @@ kyber_ciphertext_sizes:
 .word 0  /* K=15 unused */
 .word 0  /* K=16 unused */
 .word 0  /* K=17 unused */
-.word 0  /* K=18 unused */
+.word 7296  /* K=18 (kaiburr6) */
 .word 0  /* K=19 unused */
 .word 0  /* K=20 unused */
 .word 0  /* K=21 unused */

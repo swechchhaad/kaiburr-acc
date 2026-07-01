@@ -44,6 +44,12 @@
   #define CRYPTO_CIPHERTEXTBYTES 9600
 #endif
 
+#elif KYBER_K == 18
+  #define CRYPTO_PUBLICKEYBYTES 6944
+  #define CRYPTO_SECRETKEYBYTES 13920
+  #define CRYPTO_CIPHERTEXTBYTES 7296
+#endif
+
 /* entry point. */
 .globl main
 main:

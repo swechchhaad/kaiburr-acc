@@ -98,173 +98,73 @@ f8:
         bn.sid       x6, 0(x11++)
     ret
 
-#if 0 /* eta=3 CBD sampler removed for now */
 /*
- * cbd3
+ * f6
  *
- * Description: Given an array of uniformly random bytes, compute
- *              polynomial with coefficients distributed according to
- *              a centered binomial distribution with parameter eta=3.
- *              This function is only needed for Kyber-512
+ *       samples the distribution f(n) with n = 6, per coefficient:
+ *           draw 6 random bits b0..b5
+ *           sign      = (-1)^b5
+ *           magnitude = (1 - b0) + 2 * [b0..b4 all ones]   (in {0,1,2})
+ *           coeff     = sign * magnitude   (reduced into [0,q))
+ *       => P(0) = 1/2 - 2^-5, P(+-1) = 1/4, P(+-2) = 2^-6.
+ * note: f6 packs 4 coeffs per 3 bytes, so it
+ * consumes 256*6/8 = 192 input bytes (6 wide regs) and produces 256 coeffs
+ * (16 wide regs). cbd3-style 6-bit unpacking combined with the f8
+ * arithmetic.
  *
- * Flags: Clobbers FG0, has no meaning beyond the scope of this subroutine.
- *
- * @param[in]  x10: dptr_input, dmem pointer to input byte array
+ * @param[in]  x10: dptr_input, dmem pointer to input byte array (>= 192 bytes)
  * @param[in]  x11: dptr_output, dmem pointer to output
- * @param[in]  x17: cbd2_const
- * @param[in]  w31: all-zero
+ * @param[in]  w31: all-zero (f6 zeroes it itself, like f8)
+ * @param[in]  MOD: low 16-bit lane = q (already set when f6 is reached)
  *
- * clobbered registers: x4-x30, w0-w31
+ * clobbered registers: x4 to x7, w0 to w10
  */
+.globl f6
+f6:
+    /* re-establish the all-zero convention */
+    bn.xor w31, w31, w31
 
-.globl cbd3
-cbd3:
-    /* Set up wide registers for input and intermediate states */
-    li x4, 0
-    li x5, 1
-    li x6, 2
-    li x19, 11
-    li x20, 20
-    li x21, 21
+    li x4, 0                    /* load idx  -> w0            */
+    li x5, 1                    /*           -> w1            */
+    li x6, 2                    /*           -> w2            */
+    li x7, 10                   /* store idx -> w10           */
 
-    /* Load cbd3_const */
-    la x17, cbd3_const
-    bn.lid x20, 0(x17++)
-    bn.lid x21, 0(x17)
+    /* masks (per 16-bit lane): w4 = 0x001F, w5 = 0x0001 */
+    bn.not     w3, w31          /* 0xFFFF                     */
+    bn.shv.16H w4, w3 >> 11     /* 0x001F  (low 5 bits)       */
+    bn.shv.16H w5, w3 >> 15     /* 0x0001                     */
 
-    LOOPI 2, 119
-        /* Load inpput array of 2*256/4=128 bytes --> 4 wrs */
-        bn.lid x4, 0(x10++)
-        bn.lid x5, 0(x10++)
-        bn.lid x6, 0(x10++)
+    /* 2 halves of 128 coeffs; each half = 96 input bytes = 3 wregs */
+    LOOPI 2, 24
+        bn.lid x4, 0(x10++)     /* w0 = stream[  0:255]       */
+        bn.lid x5, 0(x10++)     /* w1 = stream[256:511]       */
+        bn.lid x6, 0(x10++)     /* w2 = stream[512:767]       */
 
-        bn.and  w3, w0, w20       /* extract mod3=0 bit of w0 */
-        bn.rshi w4, w31, w0 >> 1  /* w0 >> 1 */
-        bn.and  w4, w4, w20       /* extract mod3=1 bit of w0 */
-        bn.rshi w5, w31, w0 >> 2  /* w0 >> 1 */
-        bn.and  w5, w5, w20       /* extract mod3=2 bit of w0 */
-        bn.add  w3, w3, w4
-        bn.add  w3, w3, w5        /* w3 stores 85 intermediate values */
+        /* 8 output regs of 16 coeffs each */
+        LOOPI 8, 20
+            /* spread 16 raw 6-bit fields -> 16 zero-ext lanes in w9,
+               advancing the w0<-w1<-w2 pipeline by 6 bits per lane   */
+            LOOPI 16, 5
+                bn.rshi w9, w0,  w9 >> 6    /* 6 data bits -> top lane */
+                bn.rshi w9, w31, w9 >> 10   /* zero-extend to 16 bits  */
+                bn.rshi w0, w1,  w0 >> 6    /* w0 pulls 6 from w1      */
+                bn.rshi w1, w2,  w1 >> 6    /* w1 pulls 6 from w2      */
+                bn.rshi w2, w31, w2 >> 6    /* w2 drains with zeros    */
 
-        bn.rshi w0, w1, w0 >> 255 /* w0 stores last bit of old w0, and 255 bits of w1 */
-        bn.and  w4, w0, w20       /* extract mod3=0 bit of w0 */
-        bn.rshi w5, w31, w0 >> 1  /* w0 >> 1 */
-        bn.and  w5, w5, w20       /* extract mod3=1 bit of w0 */
-        bn.rshi w6, w31, w0 >> 2  /* w0 >> 2 */
-        bn.and  w6, w6, w20       /* extract mod3=2 bit of w0 */
-        bn.add  w4, w4, w5
-        bn.add  w4, w4, w6        /* w4 stores 85 intermediate values */
+            /* per-coefficient kernel, identical to f8 except 0x1F / >>5 */
+            bn.and       w6,  w9, w5   /* b   = c & 1                 */
+            bn.and       w7,  w9, w4   /* t   = c & 0x1F              */
+            bn.addv.16H  w7,  w7, w5   /* t  += 1                     */
+            bn.shv.16H   w7,  w7 >> 5  /* ind = t >> 5  in {0,1}      */
+            bn.shv.16H   w8,  w7 << 1  /* mag = 2*ind                 */
+            bn.addv.16H  w8,  w8, w5   /* mag = 2*ind + 1             */
+            bn.subv.16H  w8,  w8, w6   /* mag = 2*ind + 1 - b         */
+            bn.shv.16H   w6,  w9 >> 5  /* s   = bit5    in {0,1}      */
+            bn.subv.16H  w6,  w31, w6  /* m   = 0 - s                 */
+            bn.subvm.16H w7,  w31, w8  /* neg = (q - mag) mod q       */
+            bn.xor       w10, w8,  w7  /* diff = mag ^ neg            */
+            bn.and       w10, w10, w6  /* diff &= m                   */
+            bn.xor       w10, w8,  w10 /* coeff = mag if s=0 else neg */
 
-        bn.rshi w0, w2, w1 >> 254 /* w0 stores 2 last bits of w1, and 254 bits of w2 */
-        bn.and  w5, w0, w20       /* extract mod3=0 bit of w0 */
-        bn.rshi w6, w31, w0 >> 1  /* w0 >> 1 */
-        bn.and  w6, w6, w20       /* extract mod3=1 bit of w0 */
-        bn.rshi w7, w31, w0 >> 2  /* w0 >> 2 */
-        bn.and  w7, w7, w20       /* extract mod3=2 bit of w0 */
-        bn.add  w5, w5, w6
-        bn.add  w5, w5, w7        /* w5 stores 85 intermediate values */
-
-        bn.rshi w0, w31, w2 >> 253 /* w0 stores 3 last bits of w2 */
-        bn.and  w6, w0, w20       /* extract first bit of w0 */
-        bn.rshi w0, w31, w0 >> 1  /* w0 >> 1 */
-        bn.and  w7, w0, w20       /* extract second bit of w0 */
-        bn.rshi w0, w31, w0 >> 1  /* w0 >> 1 */
-        bn.and  w0, w0, w20       /* extract third bit of w0 */
-        bn.add  w6, w6, w7
-        bn.add  w6, w6, w0        /* w6 stores 1 intermediate value */
-
-        bn.and  w0, w3, w21       /* and 0x000111 */
-        bn.rshi w3, w31, w3 >> 3  /* w3 >> 3 */
-        bn.and  w3, w3, w21       /* and 0x000111 */
-
-        bn.and  w1, w4, w21       /* and 0x000111 */
-        bn.rshi w4, w31, w4 >> 3  /* w4 >> 3 */
-        bn.and  w4, w4, w21       /* and 0x000111 */
-
-        bn.and  w2, w5, w21       /* and 0x000111 */
-        bn.rshi w5, w31, w5 >> 3  /* w5 >> 3 */
-        bn.and  w5, w5, w21       /* and 0x000111 */
-
-        /* Compute 16*3=48 coeffs */
-        LOOPI 2, 9
-            LOOPI 16, 6
-                bn.rshi w8, w0, w8 >> 6
-                bn.rshi w9, w3, w9 >> 6
-                bn.rshi w8, w31, w8 >> 10
-                bn.rshi w9, w31, w9 >> 10
-                bn.rshi w0, w31, w0 >> 6
-                bn.rshi w3, w31, w3 >> 6
-            bn.subvm.16H w11, w8, w9
-            bn.sid x19, 0(x11++)
-        LOOPI 10, 6
-            bn.rshi w8, w0, w8 >> 6
-            bn.rshi w9, w3, w9 >> 6
-            bn.rshi w8, w31, w8 >> 10
-            bn.rshi w9, w31, w9 >> 10
-            bn.rshi w0, w31, w0 >> 6
-            bn.rshi w3, w31, w3 >> 6
-        bn.rshi w8, w0, w8 >> 16     /* w0 is free */
-        bn.rshi w9, w1, w9 >> 6
-        bn.rshi w9, w31, w9 >> 10
-        bn.rshi w1, w31, w1 >> 6     /* shift out the first intermediate value */
-        LOOPI 5, 6
-            bn.rshi w8, w4, w8 >> 6
-            bn.rshi w9, w1, w9 >> 6
-            bn.rshi w8, w31, w8 >> 10
-            bn.rshi w9, w31, w9 >> 10
-            bn.rshi w1, w31, w1 >> 6
-            bn.rshi w4, w31, w4 >> 6
-        bn.subvm.16H w11, w8, w9
-        bn.sid  x19, 0(x11++)
-
-        /* Compute 16*3=48 coeffs */
-        LOOPI 2, 9
-            LOOPI 16, 6
-                bn.rshi w8, w4, w8 >> 6
-                bn.rshi w9, w1, w9 >> 6
-                bn.rshi w8, w31, w8 >> 10
-                bn.rshi w9, w31, w9 >> 10
-                bn.rshi w1, w31, w1 >> 6
-                bn.rshi w4, w31, w4 >> 6
-            bn.subvm.16H w11, w8, w9
-            bn.sid  x19, 0(x11++)
-        LOOPI 5, 6
-            bn.rshi w8, w4, w8 >> 6
-            bn.rshi w9, w1, w9 >> 6
-            bn.rshi w8, w31, w8 >> 10
-            bn.rshi w9, w31, w9 >> 10
-            bn.rshi w1, w31, w1 >> 6
-            bn.rshi w4, w31, w4 >> 6
-        LOOPI 11, 6
-            bn.rshi w8, w2, w8 >> 6
-            bn.rshi w9, w5, w9 >> 6
-            bn.rshi w8, w31, w8 >> 10
-            bn.rshi w9, w31, w9 >> 10
-            bn.rshi w2, w31, w2 >> 6
-            bn.rshi w5, w31, w5 >> 6
-        bn.subvm.16H w11, w8, w9
-        bn.sid  x19, 0(x11++)
-
-        /* Compute 16*2=32 coeffs */
-        LOOPI 16, 6
-            bn.rshi w8, w2, w8 >> 6
-            bn.rshi w9, w5, w9 >> 6
-            bn.rshi w8, w31, w8 >> 10
-            bn.rshi w9, w31, w9 >> 10
-            bn.rshi w2, w31, w2 >> 6
-            bn.rshi w5, w31, w5 >> 6
-        bn.subvm.16H w11, w8, w9
-        bn.sid  x19, 0(x11++)
-        LOOPI 15, 6
-            bn.rshi w8, w2, w8 >> 6
-            bn.rshi w9, w5, w9 >> 6
-            bn.rshi w8, w31, w8 >> 10
-            bn.rshi w9, w31, w9 >> 10
-            bn.rshi w2, w31, w2 >> 6
-            bn.rshi w5, w31, w5 >> 6
-        bn.rshi w8, w2, w8 >> 16
-        bn.rshi w9, w6, w9 >> 16
-        bn.subvm.16H w11, w8, w9
-        bn.sid  x19, 0(x11++)
+            bn.sid x7, 0(x11++)
     ret
-#endif

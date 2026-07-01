@@ -295,3 +295,16 @@ py_binary(
         ("keygen_encap", 2),
     ]
 ]
+
+# unit test for the f6 noise sampler (n=6, 3 bytes -> 4 coeffs) in isolation.
+acc_sim_test(
+    name = "f6_test",
+    srcs = ["f6_test.s"],
+    exp = "f6_test.exp",
+    pqc = True,
+    stats = False,
+    deps = [
+        "//sw/acc/crypto/mlkem:cbd",
+        "//sw/acc/crypto/mlkem:consts",
+    ],
+)

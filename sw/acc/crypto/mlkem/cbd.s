@@ -135,7 +135,7 @@ f6:
     bn.shv.16H w5, w3 >> 15     /* 0x0001                     */
 
     /* 2 halves of 128 coeffs; each half = 96 input bytes = 3 wregs */
-    LOOPI 2, 24
+    LOOPI 2, 25
         bn.lid x4, 0(x10++)     /* w0 = stream[  0:255]       */
         bn.lid x5, 0(x10++)     /* w1 = stream[256:511]       */
         bn.lid x6, 0(x10++)     /* w2 = stream[512:767]       */
@@ -167,4 +167,6 @@ f6:
             bn.xor       w10, w8,  w10 /* coeff = mag if s=0 else neg */
 
             bn.sid x7, 0(x11++)
+        /* keep LOOPI 2 from ending on the same instruction as LOOPI 8 */
+        nop
     ret

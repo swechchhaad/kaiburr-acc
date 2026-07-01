@@ -154,10 +154,10 @@ poly_getnoise_init:
 /*
  * Name:        poly_getnoise
  *
- * Description: Sample a polynomial deterministically from a seed and a nonce,
- *              with each coefficient drawn from f(8)
- *              (see cbd.s). Assumes `poly_getnoise_init` has been called first
- *              with the appropriate seed and nonce.
+ * Description: Sample a polynomial deterministically from a seed and a nonce.
+ *              The distribution is chosen at runtime by K. K==18 uses f6 (n=6, 192-byte squeeze), 
+ *              any other K uses f8 (n=8, 256-byte squeeze). 
+ *              Assumes `poly_getnoise_init` has been called first with the appropriate seed and nonce.
  *
  *              ML-KEM's eta1/eta2 distinction has been removed.
  *
@@ -169,24 +169,39 @@ poly_getnoise_init:
  *
  * @param[in]  w31: all-zero
  * @param[in]  x6: dmem_ptr to SHAKE256 results from `poly_getnoise_init`
+ * @param[in]  x14: KYBER_K (selects f6 vs f8)
  * @param[out] x11: dptr_output, dmem pointer to output polynomial
  *
- * clobbered registers: x4 to x11, x17, w0 to w8
+ * clobbered registers: x4 to x11, x17, w0 to w8, w9 to w10 (f6)
  * clobbered flag groups: FG0
  */
 
 .globl poly_getnoise
 poly_getnoise:
   addi x10, x6, 0
+  li   x5, 8
 
-  li x5, 8
+  /* pick the sampler by the runtime K in x14:
+   *   K == 18: n=6, squeeze 192 bytes (6 wregs), sample with f6
+   *   else n=8, squeeze 256 bytes (8 wregs), sample with f8   */
+  li   x7, 18
+  beq  x14, x7, _poly_getnoise_n6
+
+  /* for n = 8 : squeeze 256 bytes, then f8 */
   LOOPI 8, 2
     bn.wsrr w8, 0xA /* KECCAK_DIGEST */
-    bn.sid  x5, 0(x6++) /* Store into buffer (256 bytes for f(8)) */
-
+    bn.sid  x5, 0(x6++)
   bn.add w8, w0, w0
   jal    x1, f8
+  ret
 
+_poly_getnoise_n6:
+  /* for n = 6 : squeeze 192 bytes, then f6 */
+  LOOPI 6, 2
+    bn.wsrr w8, 0xA /* KECCAK_DIGEST */
+    bn.sid  x5, 0(x6++)
+  bn.add w8, w0, w0
+  jal    x1, f6
   ret
 
 /*

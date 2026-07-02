@@ -13,92 +13,23 @@
 #define SEEDBYTES 32
 #define CRHBYTES 64
 #define TRBYTES 64
-#define RNDBYTES 32
 #define N 256
 #define Q 8380417
 #define D 13
-#define ROOT_OF_UNITY 1753
 
-#if DILITHIUM_MODE == 2
-#define K 4
-#define L 4
-#define ETA 2
-#define TAU 39
-#define BETA 78
-#define GAMMA1 131072
-#define GAMMA2 95232
-#define OMEGA 80
-#define CTILDEBYTES 32
-
-#define POLYVECK_BYTES 4096
-#define POLYVECL_BYTES 4096
-#define Lminus1 3
-
-#define CRYPTO_PUBLICKEYBYTES 1312
-#define CRYPTO_SECRETKEYBYTES 2560
-#define CRYPTO_BYTES 2420
-
-#elif DILITHIUM_MODE == 3
-#define K 6
-#define L 5
-#define ETA 4
-#define TAU 49
-#define BETA 196
-#define GAMMA1 524288
-#define GAMMA2 261888
-#define OMEGA 55
-#define CTILDEBYTES 48
-
-#define POLYVECK_BYTES 6144
-#define POLYVECL_BYTES 5120
-#define Lminus1 4
-
-#define CRYPTO_PUBLICKEYBYTES 1952
-#define CRYPTO_SECRETKEYBYTES 4032
-#define CRYPTO_BYTES 3309
-
-#elif DILITHIUM_MODE == 5
-#define K 8
-#define L 7
-#define ETA 2
-#define TAU 60
-#define BETA 120
-#define GAMMA1 524288
-#define GAMMA2 261888
-#define OMEGA 75
-#define CTILDEBYTES 64
-
+/* Worst-case (ML-DSA-87) polyvec sizes for static buffers. */
 #define POLYVECK_BYTES 8192
 #define POLYVECL_BYTES 7168
-#define Lminus1 6
 
-#define CRYPTO_PUBLICKEYBYTES 2592
-#define CRYPTO_SECRETKEYBYTES 4896
-#define CRYPTO_BYTES 4627
-
-#endif
-
-#define POLYT1_PACKEDBYTES  320
-#define POLYT0_PACKEDBYTES  416
-#define POLYVECH_PACKEDBYTES (OMEGA + K)
-
-#if GAMMA1 == (1 << 17)
-#define POLYZ_PACKEDBYTES   576
-#elif GAMMA1 == (1 << 19)
-#define POLYZ_PACKEDBYTES   640
-#endif
-
-#if GAMMA2 == (Q-1)/88
-#define POLYW1_PACKEDBYTES  192
-#elif GAMMA2 == (Q-1)/32
-#define POLYW1_PACKEDBYTES  128
-#endif
-
-#if ETA == 2
-#define POLYETA_PACKEDBYTES  96
-#elif ETA == 4
-#define POLYETA_PACKEDBYTES 128
-#endif
+/* Offsets into the mldsa_params struct (in mldsa_consts.s). */
+#define MLDSA_PARAM_K_OFFSET 0
+#define MLDSA_PARAM_L_OFFSET 4
+#define MLDSA_PARAM_TAU_OFFSET 8
+#define MLDSA_PARAM_OMEGA_OFFSET 12
+#define MLDSA_PARAM_GAMMA1_MINUS_BETA_OFFSET 16
+#define MLDSA_PARAM_POLYW1_PACKEDBYTES_OFFSET 20
+#define MLDSA_PARAM_CRYPTO_PUBLICKEYBYTES_OFFSET 24
+#define MLDSA_PARAM_CRYPTO_BYTES_OFFSET 44
 
 /* Register aliases */
 .equ x2, sp
@@ -163,141 +94,108 @@
  * @param[in] x11: byte-length of message
  * @param[in] dmem[ctx]: context value (0-256B)
  * @param[in] x12: byte-length of context
+ * @param[in] dmem[mldsa_params]: active mode parameters
  * @param[in] dmem[pk]: public key
  * @param[out] dmem[result]: 0 on success, 0xffffff on failure
  *
  */
 .globl crypto_sign_verify_internal
 crypto_sign_verify_internal:
+    la   s11, mldsa_params
+
     /* Save signature pointer. */
     la  t0, dptr_sig
     sw  a0, 0(t0)
 
-    /* Save message and context lengths. */
-    addi s0, a1, 0
-    addi s1, a2, 0
-
     /* Unpack sig */
 
-    /* Unpack ctilde */
+    /* Unpack ctilde. CTILDEBYTES depends on K (= K*8 bytes). */
     la  t0, dptr_sig
     lw  t0, 0(t0)
     la  t1, ctilde
-#if DILITHIUM_MODE == 2
+    lw  t2, MLDSA_PARAM_K_OFFSET(s11)
+    li  t3, 4
+    beq t2, t3, _ctilde_unpack_44
+    li  t3, 6
+    beq t2, t3, _ctilde_unpack_65
+    /* ML-DSA-87 (K=8, CTILDEBYTES=64): two 32B copies. */
     bn.lid x0, 0(t0++)
     bn.sid x0, 0(t1++)
-#elif DILITHIUM_MODE == 3
-    /* The signature is not 32-byte aligned, so we copy using GPRs. */
+    bn.lid x0, 0(t0++)
+    bn.sid x0, 0(t1++)
+    jal x0, _ctilde_unpack_done
+_ctilde_unpack_44:
+    /* ML-DSA-44 (K=4, CTILDEBYTES=32): one 32B copy. */
+    bn.lid x0, 0(t0++)
+    bn.sid x0, 0(t1++)
+    jal x0, _ctilde_unpack_done
+_ctilde_unpack_65:
+    /* ML-DSA-65 (K=6, CTILDEBYTES=48): the signature is not 32-byte aligned,
+       so copy using GPRs. Zero-pad the remaining 16B to avoid bignum load
+       errors at the later compare. */
     LOOPI 12, 4
         lw t3, 0(t0)
         sw t3, 0(t1)
         addi t0, t0, 4
         addi t1, t1, 4
-    /* We need to set the remaining 16 bytes to 0 to avoid bignum load errors. */
     LOOPI 4, 2
         sw x0, 0(t1)
         addi t1, t1, 4
-#elif DILITHIUM_MODE == 5
-    bn.lid x0, 0(t0++)
-    bn.sid x0, 0(t1++)
-    bn.lid x0, 0(t0++)
-    bn.sid x0, 0(t1++)
-#endif
+_ctilde_unpack_done:
 
-    /* Unpack z */
-    addi a1, t0, 0
+    /* z is not 32-byte aligned for ML-DSA-65: GPR-copy it into w1_polyvec and
+       unpack from there. z_bytes = CRYPTO_BYTES - CTILDEBYTES - OMEGA - K. */
+    lw   t1, MLDSA_PARAM_CRYPTO_BYTES_OFFSET(s11)
+    lw   t2, MLDSA_PARAM_K_OFFSET(s11)
+    slli t3, t2, 3   /* CTILDEBYTES = K*8 */
+    sub  t1, t1, t3
+    lw   t3, MLDSA_PARAM_OMEGA_OFFSET(s11)
+    sub  t1, t1, t3
+    sub  t1, t1, t2  /* z_bytes (multiple of 4) */
+    srli t1, t1, 2
+    addi s9, t0, 0   /* walk the sig z-region; ends at the hint */
+    la   a0, w1_polyvec
+    LOOP t1, 4
+        lw   t2, 0(s9)
+        sw   t2, 0(a0)
+        addi s9, s9, 4
+        addi a0, a0, 4
+
+    /* s9 now points at the hint region. Unpack z from the aligned copy. */
+    la   a1, w1_polyvec
     la   a0, z_polyvec
-    LOOPI L, 2
+    lw   a4, MLDSA_PARAM_K_OFFSET(s11)
+    lw   t0, MLDSA_PARAM_L_OFFSET(s11)
+    LOOP t0, 2
         jal x1, polyz_unpack
         nop
-
-    /* Copy sig pointer for unpacking h later. */
-    addi s9, a1, 0
 
     /* reduce32(z) for central representation */
     la a0, z_polyvec
     la a1, w1_polyvec
-    LOOPI L, 2
+    lw   t0, MLDSA_PARAM_L_OFFSET(s11)
+    LOOP t0, 2
         jal x1, poly_reduce32
         nop
 
     /* chknorm */
-    li   t0, GAMMA1
-    li   t1, BETA
-    sub  a1, t0, t1
+    lw   a1, MLDSA_PARAM_GAMMA1_MINUS_BETA_OFFSET(s11)   /* GAMMA1 - BETA */
     la   a0, w1_polyvec
     li   s2, 0
 
-    loopi L, 2
+    lw   t0, MLDSA_PARAM_L_OFFSET(s11)
+    LOOP t0, 2
         jal x1, poly_chknorm
         or  s2, s2, a2
     bne s2, x0, _fail_crypto_sign_verify_internal /* Raise error */
 
-    /* Compute H(rho, t1) */
-    /* Load pointer to pk */
-    la  a0, pk
-
-    /* Initialize a SHAKE256 operation. */
-    li    a1, CRYPTO_PUBLICKEYBYTES /* set message length to CRYPTO_PUBLICKEYBYTES */
-    slli  t0, a1, 5
-    addi  t0, t0, SHAKE256_CFG
-    csrrw x0, KECCAK_CFG_REG, t0
-
-    /* Send the public key to the Keccak core. */
-    jal x1, keccak_send_message
-
-    /* Read tr (64B) and store in dmem[mu]. */
-    la      a0, mu
-    bn.wsrr w0, kmac_digest
-    bn.sid  x0, 0(a0++)
-    bn.wsrr w0, kmac_digest
-    bn.sid  x0, 0(a0)
-
-    /* Compute the total length of tr + [0,ctxlen] + ctx + msg. */
-    li   t1, TRBYTES
-    addi t1, t1, 2
-    add  t1, t1, s1 /* Add len(ctx) */
-    add  t1, t1, s0 /* Add len(msg) */
-
-    /* Initialize a SHAKE256 operation. */
-    slli  t0, t1, 5
-    addi  t0, t0, SHAKE256_CFG
-    csrrw x0, KECCAK_CFG_REG, t0
-
-    /* Send TR to the Keccak core. */
-    li  a1, TRBYTES
-    la  a0, mu
-    jal x1, keccak_send_message
-
-    /* Copy 0 || ctxlen to a 32B-aligned buffer temporarily. */
-    la   a0, mu
-    addi t1, s1, 0
-    slli t1, t1, 8
-    sw   t1, 0(a0)
-
-    /* Send 0 || ctxlen to the Keccak core (2B). */
-    li  a1, 2
-    jal x1, keccak_send_message
-
-    /* Send ctx to the Keccak core. */
-    addi a1, s1, 0 /* a1 <= ctxlen */
-    la   a0, ctx /* a0 <= *ctx */
-    jal  x1, keccak_send_message
-
-    /* Send message to the Keccak core. */
-    addi a1, s0, 0 /* a1 <= msglen */
-    la   a0, msg /* a0 <= *msg */
-    jal  x1, keccak_send_message
-
-    /* Write 64B of SHAKE output to dmem[mu]. */
-    la      a0, mu
-    bn.wsrr w0, kmac_digest
-    bn.sid  x0, 0(a0++)
-    bn.wsrr w0, kmac_digest
-    bn.sid  x0, 0(a0)
+    /* External mu: dmem[mu] is supplied by the caller. */
 
     la  a0, c_poly
     la  a1, ctilde
+    lw   t0, MLDSA_PARAM_K_OFFSET(s11)
+    slli a2, t0, 3   /* CTILDEBYTES = K * 8 */
+    lw   a3, MLDSA_PARAM_TAU_OFFSET(s11)
     jal x1, poly_challenge
 
     /* Prepare modulus */
@@ -310,7 +208,8 @@ crypto_sign_verify_internal:
     la   a0, z_polyvec
     addi a2, a0, 0 /* inplace */
 
-    LOOPI L, 2
+    lw t0, MLDSA_PARAM_L_OFFSET(s11)
+    LOOP t0, 2
         jal  x1, ntt
         addi a1, a1, -1024
 
@@ -349,14 +248,15 @@ crypto_sign_verify_internal:
     /* Load destination pointer for matrix-vector multiplication. */
     la  s2, w1_polyvec
 
-    /* Load offset for resetting vector pointer. */
-    li s3, POLYVECL_BYTES
+    lw   t0, MLDSA_PARAM_L_OFFSET(s11)
+    slli s3, t0, 10
 
     /* Load pointer to rho (first 32B of public key). */
     la s5, pk
 
     /* Compute A * z, computing elements of A on the fly. */
-    loopi K, 39
+    lw a4, MLDSA_PARAM_K_OFFSET(s11)
+    LOOP a4, 43
         /* Compute A[i][0]. */
         addi a1, s1, 0
         jal  x1, poly_uniform
@@ -375,7 +275,9 @@ crypto_sign_verify_internal:
         addi a2, s2, 0
         jal  x1, poly_pointwise
         addi s0, s0, 1024
-        loopi Lminus1, 14
+        lw t0, MLDSA_PARAM_L_OFFSET(s11)
+        addi t0, t0, -1
+        LOOP t0, 14
             /* Compute A[i][j]. */
             addi a1, s1, 0
             jal  x1, poly_uniform
@@ -399,7 +301,9 @@ crypto_sign_verify_internal:
         addi s2, s2, 1024
         /* Adjust the matrix nonce to reset the column and increment the row. */
         bn.addi w23, w23, 256
-        bn.subi w23, w23, L
+        lw t0, MLDSA_PARAM_L_OFFSET(s11)
+        LOOP t0, 1
+            bn.subi w23, w23, 1
         /* Start the SHAKE128 operation for poly_uniform for A[i+1][j]. */
         csrrw     x0, kmac_cfg, s4
         bn.lid    x0, 0(s5)
@@ -411,8 +315,10 @@ crypto_sign_verify_internal:
     /* Call random oracle and verify challenge */
     /* Initialize a SHAKE256 operation. */
     li a1, CRHBYTES
-    LOOPI K, 1
-        addi a1, a1, POLYW1_PACKEDBYTES
+    lw t0, MLDSA_PARAM_POLYW1_PACKEDBYTES_OFFSET(s11)
+    lw a4, MLDSA_PARAM_K_OFFSET(s11)
+    LOOP a4, 1
+        add a1, a1, t0
     slli  t0, a1, 5
     addi  t0, t0, SHAKE256_CFG
     csrrw x0, KECCAK_CFG_REG, t0
@@ -439,7 +345,8 @@ crypto_sign_verify_internal:
     la  s1, w1_polyvec
     la  s3, tmp_poly
     la  s4, c_poly
-    loopi K, 42
+    lw  a4, MLDSA_PARAM_K_OFFSET(s11)
+    LOOP a4, 45
         /* Unpack the next polynomial from t1 and store it in temp buffer. */
         addi a0, s3, 0
         addi a1, s6, 0
@@ -473,6 +380,8 @@ crypto_sign_verify_internal:
         addi a1, s9, 0
         addi a2, s7, 0
         addi a3, s8, 0
+        lw   a5, MLDSA_PARAM_K_OFFSET(s11)
+        lw   t4, MLDSA_PARAM_OMEGA_OFFSET(s11)
         jal x1, poly_decode_h
         addi s9, a1, 0
         addi s7, a2, 0
@@ -482,6 +391,7 @@ crypto_sign_verify_internal:
         addi a0, s1, 0
         addi a1, s1, 0
         addi a2, s3, 0
+        lw   a4, MLDSA_PARAM_K_OFFSET(s11)
         jal  x1, poly_use_hint
         /* Pack the w1 polynomial (in-place). */
         addi a0, s1, 0
@@ -489,7 +399,7 @@ crypto_sign_verify_internal:
         jal  x1, polyw1_pack
         /* Send the packed w1 polynomial to the Keccak core. */
         addi a0, s1, 0
-        addi a1, x0, POLYW1_PACKEDBYTES
+        lw   a1, MLDSA_PARAM_POLYW1_PACKEDBYTES_OFFSET(s11)
         jal  x1, keccak_send_message
         addi s1, s1, 1024 /* increment *w1 */
 
@@ -520,13 +430,19 @@ crypto_sign_verify_internal:
     andi  t1, t1, 1
 
     beq t1, x0, _fail_crypto_sign_verify_internal
-#if CTILDEBYTES == 48 || CTILDEBYTES == 64
+
+    /* If CTILDEBYTES == 32 (K=4), one 32B compare suffices. */
+    lw   t1, MLDSA_PARAM_K_OFFSET(s11)
+    li   t3, 4
+    beq  t1, t3, _success_crypto_sign_verify_internal
+
     bn.wsrr w8, 0xA /* KECCAK_DIGEST */
-    /* Remove upper 16B from digest in the case of CTILDEBYTES == 48 */
-#if CTILDEBYTES == 48
+    /* Remove upper 16B from digest in the case of CTILDEBYTES == 48 (K=6). */
+    li   t3, 6
+    bne  t1, t3, _skip_mask_ctilde
     bn.rshi w8, w8, bn0 >> 128
     bn.rshi w8, bn0, w8 >> 128
-#endif
+_skip_mask_ctilde:
     bn.lid t2, 0(t0++)
 
     /* Check if c == c2 */
@@ -539,8 +455,7 @@ crypto_sign_verify_internal:
     andi  t0, t0, 1
 
     beq t0, x0, _fail_crypto_sign_verify_internal
-#endif
-    beq x0, x0, _success_crypto_sign_verify_internal
+    jal x0, _success_crypto_sign_verify_internal
 
     /* ------------------------ */
 
@@ -558,40 +473,3 @@ _fail_crypto_sign_verify_internal:
     sw a0, 0(a1)
     /*unimp*/
     ret
-
-.bss
-
-/* Pointer to signature. */
-.balign 4
-dptr_sig:
-.zero 4
-
-/* mu intermediate value (64B). */
-.balign 32
-mu:
-.zero 64
-
-/* ctilde intermediate value (CTILDEBYTES bytes). */
-.balign 32
-ctilde:
-.zero CTILDEBYTES
-
-/* Challenge polynomial (1024B). */
-.balign 32
-c_poly:
-.zero 1024
-
-/* Temporary polynomial buffer (1024B). */
-.balign 32
-tmp_poly:
-.zero 1024
-
-/* z polynomial vector (L*1024B). */
-.balign 32
-z_polyvec:
-.zero POLYVECL_BYTES
-
-/* w1 polynomial vector (K*1024B). */
-.balign 32
-w1_polyvec:
-.zero POLYVECK_BYTES

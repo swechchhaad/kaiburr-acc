@@ -15,11 +15,44 @@
 .section .text.start
 #if DILITHIUM_MODE == 2
     #define CRYPTO_BYTES 2420
+    #define K 4
+    #define L 4
+    #define TAU 39
+    #define OMEGA 80
+    #define GAMMA1_MINUS_BETA 130994
+    #define POLYW1_PACKEDBYTES 192
+    #define CRYPTO_PUBLICKEYBYTES 1312
 #elif DILITHIUM_MODE == 3
     #define CRYPTO_BYTES 3309
+    #define K 6
+    #define L 5
+    #define TAU 49
+    #define OMEGA 55
+    #define GAMMA1_MINUS_BETA 524092
+    #define POLYW1_PACKEDBYTES 128
+    #define CRYPTO_PUBLICKEYBYTES 1952
 #elif DILITHIUM_MODE == 5
     #define CRYPTO_BYTES 4627
+    #define K 8
+    #define L 7
+    #define TAU 60
+    #define OMEGA 75
+    #define GAMMA1_MINUS_BETA 524168
+    #define POLYW1_PACKEDBYTES 128
+    #define CRYPTO_PUBLICKEYBYTES 2592
 #endif
+
+#define POLYVECK_BYTES (K * 1024)
+#define POLYVECL_BYTES (L * 1024)
+
+#define MLDSA_PARAM_K_OFFSET 0
+#define MLDSA_PARAM_L_OFFSET 4
+#define MLDSA_PARAM_TAU_OFFSET 8
+#define MLDSA_PARAM_OMEGA_OFFSET 12
+#define MLDSA_PARAM_GAMMA1_MINUS_BETA_OFFSET 16
+#define MLDSA_PARAM_POLYW1_PACKEDBYTES_OFFSET 20
+#define MLDSA_PARAM_CRYPTO_PUBLICKEYBYTES_OFFSET 24
+#define MLDSA_PARAM_CRYPTO_BYTES_OFFSET 44
 
 /* Entry point. */
 .globl main
@@ -104,16 +137,27 @@ main:
   /* Write back MOD */
   bn.wsrw 0x0, w2
 
+  /* Populate mldsa_params with the active mode's values. */
+  la    x4, mldsa_params
+  li    x5, K
+  sw    x5, MLDSA_PARAM_K_OFFSET(x4)
+  li    x5, L
+  sw    x5, MLDSA_PARAM_L_OFFSET(x4)
+  li    x5, TAU
+  sw    x5, MLDSA_PARAM_TAU_OFFSET(x4)
+  li    x5, OMEGA
+  sw    x5, MLDSA_PARAM_OMEGA_OFFSET(x4)
+  li    x5, GAMMA1_MINUS_BETA
+  sw    x5, MLDSA_PARAM_GAMMA1_MINUS_BETA_OFFSET(x4)
+  li    x5, POLYW1_PACKEDBYTES
+  sw    x5, MLDSA_PARAM_POLYW1_PACKEDBYTES_OFFSET(x4)
+  li    x5, CRYPTO_PUBLICKEYBYTES
+  sw    x5, MLDSA_PARAM_CRYPTO_PUBLICKEYBYTES_OFFSET(x4)
+  li    x5, CRYPTO_BYTES
+  sw    x5, MLDSA_PARAM_CRYPTO_BYTES_OFFSET(x4)
+
   /* Load parameters */
   la    x10, sig
-#if DILITHIUM_MODE == 3
-  /* ML-DSA-65 alignment hack. */
-  addi  x10, x10, 16
-#endif
-  la    x11, msglen
-  lw    x11, 0(x11)
-  la    x12, ctxlen
-  lw    x12, 0(x12)
 
   jal x1, crypto_sign_verify_internal
 
@@ -125,3 +169,35 @@ main:
 result:
     .byte 1
     .zero 31
+
+.bss
+
+.balign 4
+.globl dptr_sig
+dptr_sig:
+  .zero 4
+
+.balign 32
+.globl ctilde
+ctilde:
+  .zero 64
+
+.balign 32
+.globl c_poly
+c_poly:
+  .zero 1024
+
+.balign 32
+.globl tmp_poly
+tmp_poly:
+  .zero 1024
+
+.balign 32
+.globl z_polyvec
+z_polyvec:
+  .zero POLYVECL_BYTES
+
+.balign 32
+.globl w1_polyvec
+w1_polyvec:
+  .zero POLYVECK_BYTES

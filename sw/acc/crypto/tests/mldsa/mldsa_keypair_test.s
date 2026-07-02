@@ -15,15 +15,27 @@
 
 .section .text.start
 #if DILITHIUM_MODE == 2
+    #define K 4
+    #define L 4
     #define CRYPTO_PUBLICKEYBYTES 1312
     #define CRYPTO_SECRETKEYBYTES 2560
 #elif DILITHIUM_MODE == 3
+    #define K 6
+    #define L 5
     #define CRYPTO_PUBLICKEYBYTES 1952
     #define CRYPTO_SECRETKEYBYTES 4032
 #elif DILITHIUM_MODE == 5
+    #define K 8
+    #define L 7
     #define CRYPTO_PUBLICKEYBYTES 2592
     #define CRYPTO_SECRETKEYBYTES 4896
 #endif
+
+#define POLYVECK_BYTES (K * 1024)
+
+#define MLDSA_PARAM_K_OFFSET 0
+#define MLDSA_PARAM_L_OFFSET 4
+#define MLDSA_PARAM_CRYPTO_PUBLICKEYBYTES_OFFSET 24
 
 /* Entry point. */
 .globl main
@@ -108,6 +120,15 @@ main:
   /* Write back MOD */
   bn.wsrw 0x0, w2
 
+  /* Populate mldsa_params with the active mode's values. */
+  la    x4, mldsa_params
+  li    x5, K
+  sw    x5, MLDSA_PARAM_K_OFFSET(x4)
+  li    x5, L
+  sw    x5, MLDSA_PARAM_L_OFFSET(x4)
+  li    x5, CRYPTO_PUBLICKEYBYTES
+  sw    x5, MLDSA_PARAM_CRYPTO_PUBLICKEYBYTES_OFFSET(x4)
+
   jal x1, crypto_sign_keypair
 
   ecall
@@ -122,3 +143,23 @@ pk:
 .globl sk
 sk:
   .zero CRYPTO_SECRETKEYBYTES
+
+.balign 32
+.globl rhoprime
+rhoprime:
+  .zero 64
+
+.balign 32
+.globl tmp_poly
+tmp_poly:
+  .zero 1024
+
+.balign 32
+.globl s1_poly
+s1_poly:
+  .zero 1024
+
+.balign 32
+.globl t_polyvec
+t_polyvec:
+  .zero POLYVECK_BYTES

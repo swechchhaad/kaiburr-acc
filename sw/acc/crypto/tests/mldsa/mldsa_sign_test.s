@@ -16,12 +16,60 @@
 .section .text.start
 
 #if DILITHIUM_MODE == 2
+#define K 4
+#define L 4
+#define TAU 39
+#define OMEGA 80
+#define GAMMA1_MINUS_BETA 130994
+#define POLYW1_PACKEDBYTES 192
+#define CRYPTO_PUBLICKEYBYTES 1312
+#define GAMMA2 95232
+#define GAMMA2_MINUS_BETA 95154
+#define SK_S2_OFFSET 512
+#define SK_T0_OFFSET 896
 #define CRYPTO_BYTES 2420
 #elif DILITHIUM_MODE == 3
+#define K 6
+#define L 5
+#define TAU 49
+#define OMEGA 55
+#define GAMMA1_MINUS_BETA 524092
+#define POLYW1_PACKEDBYTES 128
+#define CRYPTO_PUBLICKEYBYTES 1952
+#define GAMMA2 261888
+#define GAMMA2_MINUS_BETA 261692
+#define SK_S2_OFFSET 768
+#define SK_T0_OFFSET 1536
 #define CRYPTO_BYTES 3309
 #elif DILITHIUM_MODE == 5
+#define K 8
+#define L 7
+#define TAU 60
+#define OMEGA 75
+#define GAMMA1_MINUS_BETA 524168
+#define POLYW1_PACKEDBYTES 128
+#define CRYPTO_PUBLICKEYBYTES 2592
+#define GAMMA2 261888
+#define GAMMA2_MINUS_BETA 261768
+#define SK_S2_OFFSET 800
+#define SK_T0_OFFSET 1568
 #define CRYPTO_BYTES 4627
 #endif
+
+#define POLYVECK_BYTES (K * 1024)
+
+#define MLDSA_PARAM_K_OFFSET 0
+#define MLDSA_PARAM_L_OFFSET 4
+#define MLDSA_PARAM_TAU_OFFSET 8
+#define MLDSA_PARAM_OMEGA_OFFSET 12
+#define MLDSA_PARAM_GAMMA1_MINUS_BETA_OFFSET 16
+#define MLDSA_PARAM_POLYW1_PACKEDBYTES_OFFSET 20
+#define MLDSA_PARAM_CRYPTO_PUBLICKEYBYTES_OFFSET 24
+#define MLDSA_PARAM_GAMMA2_OFFSET 28
+#define MLDSA_PARAM_GAMMA2_MINUS_BETA_OFFSET 32
+#define MLDSA_PARAM_SK_S2_OFFSET_OFFSET 36
+#define MLDSA_PARAM_SK_T0_OFFSET_OFFSET 40
+#define MLDSA_PARAM_CRYPTO_BYTES_OFFSET 44
 
 /* Entry point. */
 .globl main
@@ -106,12 +154,35 @@ main:
   /* Write back MOD */
   bn.wsrw 0x0, w2
 
+  /* Populate mldsa_params with the active mode's values. */
+  la    x4, mldsa_params
+  li    x5, K
+  sw    x5, MLDSA_PARAM_K_OFFSET(x4)
+  li    x5, L
+  sw    x5, MLDSA_PARAM_L_OFFSET(x4)
+  li    x5, TAU
+  sw    x5, MLDSA_PARAM_TAU_OFFSET(x4)
+  li    x5, OMEGA
+  sw    x5, MLDSA_PARAM_OMEGA_OFFSET(x4)
+  li    x5, GAMMA1_MINUS_BETA
+  sw    x5, MLDSA_PARAM_GAMMA1_MINUS_BETA_OFFSET(x4)
+  li    x5, POLYW1_PACKEDBYTES
+  sw    x5, MLDSA_PARAM_POLYW1_PACKEDBYTES_OFFSET(x4)
+  li    x5, CRYPTO_PUBLICKEYBYTES
+  sw    x5, MLDSA_PARAM_CRYPTO_PUBLICKEYBYTES_OFFSET(x4)
+  li    x5, GAMMA2
+  sw    x5, MLDSA_PARAM_GAMMA2_OFFSET(x4)
+  li    x5, GAMMA2_MINUS_BETA
+  sw    x5, MLDSA_PARAM_GAMMA2_MINUS_BETA_OFFSET(x4)
+  li    x5, SK_S2_OFFSET
+  sw    x5, MLDSA_PARAM_SK_S2_OFFSET_OFFSET(x4)
+  li    x5, SK_T0_OFFSET
+  sw    x5, MLDSA_PARAM_SK_T0_OFFSET_OFFSET(x4)
+  li    x5, CRYPTO_BYTES
+  sw    x5, MLDSA_PARAM_CRYPTO_BYTES_OFFSET(x4)
+
   /* Load parameters */
   la x10, sig
-  la x11, msglen
-  lw x11, 0(x11)
-  la x12, ctxlen
-  lw x12, 0(x12)
 
   jal x1, crypto_sign_signature_internal
 
@@ -132,17 +203,40 @@ main:
 
 .balign 32
 .globl sig
-#if DILITHIUM_MODE == 3
-/* In case of Dilithium3, CTILDEBYTES is 48, not divisible by 32.
-   To make the packing easier, we dis-align the start of the signature buffer
-   because we will simply need to write C to the beginning, which is much easier
-   than dealing with the disalignment later on in the signature. */
-  .zero 16
 sig:
   .zero CRYPTO_BYTES
-  .zero 3
-#else
-sig:
-  .zero CRYPTO_BYTES
-  .zero 12
-#endif
+  .zero 32
+
+.bss
+
+.balign 4
+.globl dptr_sig
+dptr_sig:
+  .zero 4
+
+.balign 32
+.globl rhoprime
+rhoprime:
+  .zero 64
+
+.balign 32
+.globl c_poly
+c_poly:
+.globl y_poly
+y_poly:
+  .zero 1024
+
+.balign 32
+.globl tmp_poly
+tmp_poly:
+  .zero 1024
+
+.balign 32
+.globl w1_repvec
+w1_repvec:
+  .zero 256
+
+.balign 32
+.globl w0_polyvec
+w0_polyvec:
+  .zero POLYVECK_BYTES

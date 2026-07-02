@@ -209,7 +209,9 @@ def _get_addr_symbol_map(elf_file: ELFFile) -> Dict[int, str]:
         return {}
 
     return {sym.entry.st_value: sym.name
-            for sym in section.iter_symbols() if sym.entry['st_shndx'] == 1}
+            for sym in section.iter_symbols()
+            # test: skip ELF mapping symbols
+            if sym.entry['st_shndx'] == 1 and not sym.name.startswith('$')}
 
 
 class ExecutionStatAnalyzer:

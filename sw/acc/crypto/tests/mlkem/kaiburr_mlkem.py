@@ -35,21 +35,21 @@ class KaiburrKEM(ML_KEM):
             coeffs[i] = (-mag if (c >> 5) & 1 else mag) % 3329 
         return self.R(coeffs)
 
-    def _prf(self, sigma, N):
+    def _kaiburr_prf(self, sigma, N):
         return shake_256(sigma + bytes([N])).digest(self._squeeze_len())
 
     def _generate_error_vector(self, sigma, eta, N):
         elts = []
         for _ in range(self.k):
-            elts.append(self._sample_noise(self._prf(sigma, N)))
+            elts.append(self._sample_noise(self._kaiburr_prf(sigma, N)))
             N += 1
         return self.M.vector(elts), N
 
     def _generate_polynomial(self, sigma, eta, N):
-        return self._sample_noise(self._prf(sigma, N)), N + 1
+        return self._sample_noise(self._kaiburr_prf(sigma, N)), N + 1
 
     def _k_pke_encrypt(self, ek_pke, m, r):
-        if len(ek_pke) != self._ek_size():
+        if len(ek_pke) != 384 * self.k + 32:
             raise ValueError("ek_pke wrong length")
         t_hat_bytes, rho = ek_pke[:-32], ek_pke[-32:]
         t_hat = self.M.decode_vector(t_hat_bytes, self.k, 12, is_ntt=True)

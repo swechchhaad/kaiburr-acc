@@ -1,5 +1,0 @@
-__skip__
-
-# This is not a real key, but a magic value that causes bazel to clear
-# any ecdsa_key or rsa_key attributes used in any pavona_test or
-# pavona_binary execution environments.

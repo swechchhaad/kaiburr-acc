@@ -12,13 +12,13 @@
  *       this samples the distribution f(n) with
  *       n = 8, per coefficient:
  *           draw 8 random bits b0..b7
- *           sign      = (-1)^b7
+ *           sign      = (2*b7 - 1)     (b7=1 => +1, b7=0 => -1)
  *           magnitude = (1 - b0) + 2 * [b0..b6 all ones]   (in {0,1,2})
  *           coeff     = sign * magnitude   (reduced into [0,q))
  *       => P(0) = 1/2 - 2^-7, P(+-1) = 1/4, P(+-2) = 2^-8.
  *
- * distribution  is symmetric, so the (-1)^b7 sign convention below (b7=1 => negate)
- * matches f(n).
+ * this matches (2*a_n - 1)*(1 - a_1 + 2*prod_{i<n} a_i) with
+ * b_i = a_{i+1}.
  *
  * layout: one coefficient per 16-bit lane. each input byte is one coefficient,
  *         so this consumes 256 input bytes (8 wide regs) and produces 256
@@ -69,12 +69,12 @@ f8:
         bn.shv.16H   w8, w7 << 1   /* mag = 2*ind                          */
         bn.addv.16H  w8, w8, w5    /* mag = 2*ind + 1                      */
         bn.subv.16H  w8, w8, w6    /* mag = 2*ind + 1 - b   in {0,1,2}     */
-        bn.shv.16H   w6, w1 >> 7   /* s   = bit7    in {0,1}               */
-        bn.subv.16H  w6, w31, w6   /* m   = 0 - s   = 0x0000 / 0xFFFF      */
+        bn.shv.16H   w6, w1 >> 7   /* s   = bit7 (a_n)  in {0,1}           */
+        bn.subv.16H  w6, w6, w5    /* m   = s - 1  = 0xFFFF (s=0) / 0 (s=1) */
         bn.subvm.16H w7, w31, w8   /* neg = (q - mag) mod q                */
         bn.xor       w2, w8, w7    /* diff = mag ^ neg                     */
-        bn.and       w2, w2, w6    /* diff &= m                            */
-        bn.xor       w2, w8, w2    /* coeff = mag if s=0 else neg          */
+        bn.and       w2, w2, w6    /* diff &= m   (nonzero only when s=0)  */
+        bn.xor       w2, w8, w2    /* coeff = mag if s=1 else neg          */
         bn.sid       x6, 0(x11++)
 
         /* spread high 16 bytes b16..b31 (now low in w0) into w1 */
@@ -90,7 +90,7 @@ f8:
         bn.addv.16H  w8, w8, w5
         bn.subv.16H  w8, w8, w6
         bn.shv.16H   w6, w1 >> 7
-        bn.subv.16H  w6, w31, w6
+        bn.subv.16H  w6, w6, w5
         bn.subvm.16H w7, w31, w8
         bn.xor       w2, w8, w7
         bn.and       w2, w2, w6
@@ -103,7 +103,7 @@ f8:
  *
  *       samples the distribution f(n) with n = 6, per coefficient:
  *           draw 6 random bits b0..b5
- *           sign      = (-1)^b5
+ *           sign      = (2*b5 - 1)     (b5=1 => +1, b5=0 => -1)
  *           magnitude = (1 - b0) + 2 * [b0..b4 all ones]   (in {0,1,2})
  *           coeff     = sign * magnitude   (reduced into [0,q))
  *       => P(0) = 1/2 - 2^-5, P(+-1) = 1/4, P(+-2) = 2^-6.
@@ -159,12 +159,12 @@ f6:
             bn.shv.16H   w8,  w7 << 1  /* mag = 2*ind                 */
             bn.addv.16H  w8,  w8, w5   /* mag = 2*ind + 1             */
             bn.subv.16H  w8,  w8, w6   /* mag = 2*ind + 1 - b         */
-            bn.shv.16H   w6,  w9 >> 5  /* s   = bit5    in {0,1}      */
-            bn.subv.16H  w6,  w31, w6  /* m   = 0 - s                 */
+            bn.shv.16H   w6,  w9 >> 5  /* s   = bit5 (a_n)  in {0,1}  */
+            bn.subv.16H  w6,  w6,  w5  /* m   = s - 1 = 0xFFFF(s=0)/0 */
             bn.subvm.16H w7,  w31, w8  /* neg = (q - mag) mod q       */
             bn.xor       w10, w8,  w7  /* diff = mag ^ neg            */
             bn.and       w10, w10, w6  /* diff &= m                   */
-            bn.xor       w10, w8,  w10 /* coeff = mag if s=0 else neg */
+            bn.xor       w10, w8,  w10 /* coeff = mag if s=1 else neg */
 
             bn.sid x7, 0(x11++)
         /* keep LOOPI 2 from ending on the same instruction as LOOPI 8 */

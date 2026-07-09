@@ -18,6 +18,9 @@ MODE_FOR_PARAMS = {
     "kaiburr6": 18,
 }
 
+# the simulator is deterministic, so re-running the same seed is byte and cycle-identical
+# the only way to get more information is more DISTINCT seeds. 
+# TODO: confirm the target iteration count with peter before raising.
 NTESTS = 3
 
 STATS = True  # makes tests run slower but logs detailed execution stats

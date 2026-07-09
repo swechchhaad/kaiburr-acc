@@ -1,8 +1,0 @@
-# Ignore everything by default
-/*
-# Allow specific directories
-!hw/
-!sw/
-!site/
-!doc/
-!util/

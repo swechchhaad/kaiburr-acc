@@ -40,7 +40,20 @@ enum {
   kOtcryptoMldsa87SignatureBytes = 4627,
   kOtcryptoMldsa87SeedBytes = 32,
 
-  // Work buffer sizes in 32-bit words
+// Work buffer sizes in 32-bit words (the ACC backend uses none).
+#ifdef ACC_HAS_PQC
+  kOtcryptoMldsa44WorkBufferKeypairWords = 0,
+  kOtcryptoMldsa44WorkBufferSignWords = 0,
+  kOtcryptoMldsa44WorkBufferVerifyWords = 0,
+
+  kOtcryptoMldsa65WorkBufferKeypairWords = 0,
+  kOtcryptoMldsa65WorkBufferSignWords = 0,
+  kOtcryptoMldsa65WorkBufferVerifyWords = 0,
+
+  kOtcryptoMldsa87WorkBufferKeypairWords = 0,
+  kOtcryptoMldsa87WorkBufferSignWords = 0,
+  kOtcryptoMldsa87WorkBufferVerifyWords = 0,
+#else
   kOtcryptoMldsa44WorkBufferKeypairWords = 11584 / sizeof(uint32_t),
   kOtcryptoMldsa44WorkBufferSignWords = 13120 / sizeof(uint32_t),
   kOtcryptoMldsa44WorkBufferVerifyWords = 9120 / sizeof(uint32_t),
@@ -52,6 +65,7 @@ enum {
   kOtcryptoMldsa87WorkBufferKeypairWords = 18752 / sizeof(uint32_t),
   kOtcryptoMldsa87WorkBufferSignWords = 21344 / sizeof(uint32_t),
   kOtcryptoMldsa87WorkBufferVerifyWords = 12512 / sizeof(uint32_t),
+#endif
 };
 
 /**
@@ -92,8 +106,8 @@ otcrypto_status_t otcrypto_mldsa44_keygen(
  */
 OT_WARN_UNUSED_RESULT
 otcrypto_status_t otcrypto_mldsa44_keypair_derand(
-    otcrypto_const_byte_buf_t seed, otcrypto_unblinded_key_t *public_key,
-    otcrypto_blinded_key_t *secret_key,
+    otcrypto_const_aligned_byte_buf_t seed,
+    otcrypto_unblinded_key_t *public_key, otcrypto_blinded_key_t *secret_key,
     uint32_t work[kOtcryptoMldsa44WorkBufferKeypairWords]);
 
 /**
@@ -113,7 +127,7 @@ OT_WARN_UNUSED_RESULT
 otcrypto_status_t otcrypto_mldsa44_sign(
     const otcrypto_blinded_key_t *secret_key, otcrypto_const_byte_buf_t message,
     otcrypto_const_byte_buf_t context, otcrypto_mldsa_sign_mode_t sign_mode,
-    otcrypto_byte_buf_t signature,
+    otcrypto_aligned_byte_buf_t signature,
     uint32_t work[kOtcryptoMldsa44WorkBufferSignWords]);
 
 /**
@@ -134,7 +148,8 @@ OT_WARN_UNUSED_RESULT
 otcrypto_status_t otcrypto_mldsa44_sign_derand(
     const otcrypto_blinded_key_t *secret_key, otcrypto_const_byte_buf_t message,
     otcrypto_const_byte_buf_t context, otcrypto_mldsa_sign_mode_t sign_mode,
-    otcrypto_const_byte_buf_t rnd, otcrypto_byte_buf_t signature,
+    otcrypto_const_aligned_byte_buf_t rnd,
+    otcrypto_aligned_byte_buf_t signature,
     uint32_t work[kOtcryptoMldsa44WorkBufferSignWords]);
 
 /**
@@ -155,7 +170,8 @@ OT_WARN_UNUSED_RESULT
 otcrypto_status_t otcrypto_mldsa44_verify(
     const otcrypto_unblinded_key_t *public_key,
     otcrypto_const_byte_buf_t message, otcrypto_const_byte_buf_t context,
-    otcrypto_mldsa_sign_mode_t sign_mode, otcrypto_const_byte_buf_t signature,
+    otcrypto_mldsa_sign_mode_t sign_mode,
+    otcrypto_const_aligned_byte_buf_t signature,
     hardened_bool_t *verification_result,
     uint32_t work[kOtcryptoMldsa44WorkBufferVerifyWords]);
 
@@ -197,8 +213,8 @@ otcrypto_status_t otcrypto_mldsa65_keygen(
  */
 OT_WARN_UNUSED_RESULT
 otcrypto_status_t otcrypto_mldsa65_keypair_derand(
-    otcrypto_const_byte_buf_t seed, otcrypto_unblinded_key_t *public_key,
-    otcrypto_blinded_key_t *secret_key,
+    otcrypto_const_aligned_byte_buf_t seed,
+    otcrypto_unblinded_key_t *public_key, otcrypto_blinded_key_t *secret_key,
     uint32_t work[kOtcryptoMldsa65WorkBufferKeypairWords]);
 
 /**
@@ -218,7 +234,7 @@ OT_WARN_UNUSED_RESULT
 otcrypto_status_t otcrypto_mldsa65_sign(
     const otcrypto_blinded_key_t *secret_key, otcrypto_const_byte_buf_t message,
     otcrypto_const_byte_buf_t context, otcrypto_mldsa_sign_mode_t sign_mode,
-    otcrypto_byte_buf_t signature,
+    otcrypto_aligned_byte_buf_t signature,
     uint32_t work[kOtcryptoMldsa65WorkBufferSignWords]);
 
 /**
@@ -239,7 +255,8 @@ OT_WARN_UNUSED_RESULT
 otcrypto_status_t otcrypto_mldsa65_sign_derand(
     const otcrypto_blinded_key_t *secret_key, otcrypto_const_byte_buf_t message,
     otcrypto_const_byte_buf_t context, otcrypto_mldsa_sign_mode_t sign_mode,
-    otcrypto_const_byte_buf_t rnd, otcrypto_byte_buf_t signature,
+    otcrypto_const_aligned_byte_buf_t rnd,
+    otcrypto_aligned_byte_buf_t signature,
     uint32_t work[kOtcryptoMldsa65WorkBufferSignWords]);
 
 /**
@@ -260,7 +277,8 @@ OT_WARN_UNUSED_RESULT
 otcrypto_status_t otcrypto_mldsa65_verify(
     const otcrypto_unblinded_key_t *public_key,
     otcrypto_const_byte_buf_t message, otcrypto_const_byte_buf_t context,
-    otcrypto_mldsa_sign_mode_t sign_mode, otcrypto_const_byte_buf_t signature,
+    otcrypto_mldsa_sign_mode_t sign_mode,
+    otcrypto_const_aligned_byte_buf_t signature,
     hardened_bool_t *verification_result,
     uint32_t work[kOtcryptoMldsa65WorkBufferVerifyWords]);
 
@@ -302,8 +320,8 @@ otcrypto_status_t otcrypto_mldsa87_keygen(
  */
 OT_WARN_UNUSED_RESULT
 otcrypto_status_t otcrypto_mldsa87_keypair_derand(
-    otcrypto_const_byte_buf_t seed, otcrypto_unblinded_key_t *public_key,
-    otcrypto_blinded_key_t *secret_key,
+    otcrypto_const_aligned_byte_buf_t seed,
+    otcrypto_unblinded_key_t *public_key, otcrypto_blinded_key_t *secret_key,
     uint32_t work[kOtcryptoMldsa87WorkBufferKeypairWords]);
 
 /**
@@ -323,7 +341,7 @@ OT_WARN_UNUSED_RESULT
 otcrypto_status_t otcrypto_mldsa87_sign(
     const otcrypto_blinded_key_t *secret_key, otcrypto_const_byte_buf_t message,
     otcrypto_const_byte_buf_t context, otcrypto_mldsa_sign_mode_t sign_mode,
-    otcrypto_byte_buf_t signature,
+    otcrypto_aligned_byte_buf_t signature,
     uint32_t work[kOtcryptoMldsa87WorkBufferSignWords]);
 
 /**
@@ -344,7 +362,8 @@ OT_WARN_UNUSED_RESULT
 otcrypto_status_t otcrypto_mldsa87_sign_derand(
     const otcrypto_blinded_key_t *secret_key, otcrypto_const_byte_buf_t message,
     otcrypto_const_byte_buf_t context, otcrypto_mldsa_sign_mode_t sign_mode,
-    otcrypto_const_byte_buf_t rnd, otcrypto_byte_buf_t signature,
+    otcrypto_const_aligned_byte_buf_t rnd,
+    otcrypto_aligned_byte_buf_t signature,
     uint32_t work[kOtcryptoMldsa87WorkBufferSignWords]);
 
 /**
@@ -365,7 +384,8 @@ OT_WARN_UNUSED_RESULT
 otcrypto_status_t otcrypto_mldsa87_verify(
     const otcrypto_unblinded_key_t *public_key,
     otcrypto_const_byte_buf_t message, otcrypto_const_byte_buf_t context,
-    otcrypto_mldsa_sign_mode_t sign_mode, otcrypto_const_byte_buf_t signature,
+    otcrypto_mldsa_sign_mode_t sign_mode,
+    otcrypto_const_aligned_byte_buf_t signature,
     hardened_bool_t *verification_result,
     uint32_t work[kOtcryptoMldsa87WorkBufferVerifyWords]);
 

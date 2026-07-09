@@ -22,7 +22,7 @@ class KaiburrKEM(ML_KEM):
         for i in range(256):
             c = buf[i]
             mag = (1 - (c & 1)) + 2 * ((c & 0x7F) == 0x7F)
-            coeffs[i] = (-mag if (c >> 7) & 1 else mag) % 3329 
+            coeffs[i] = (mag if (c >> 7) & 1 else -mag) % 3329 
         return self.R(coeffs)
 
     def _f6(self, buf):                       
@@ -32,7 +32,7 @@ class KaiburrKEM(ML_KEM):
             c = b & 0x3F
             b >>= 6
             mag = (1 - (c & 1)) + 2 * ((c & 0x1F) == 0x1F)
-            coeffs[i] = (-mag if (c >> 5) & 1 else mag) % 3329 
+            coeffs[i] = (mag if (c >> 5) & 1 else -mag) % 3329 
         return self.R(coeffs)
 
     def _kaiburr_prf(self, sigma, N):

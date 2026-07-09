@@ -25,7 +25,10 @@ STATS = True  # makes tests run slower but logs detailed execution stats
 # Key generation tests
 py_binary(
     name = "mlkem_keypair_testgen",
-    srcs = ["mlkem_keypair_testgen.py"],
+    srcs = [
+        "kaiburr_mlkem.py",
+        "mlkem_keypair_testgen.py",
+    ],
     imports = [
         "../../../../../hw/ip/acc/util",
     ],
@@ -66,7 +69,10 @@ py_binary(
 # Encapsulation tests
 py_binary(
     name = "mlkem_encap_testgen",
-    srcs = ["mlkem_encap_testgen.py"],
+    srcs = [
+        "kaiburr_mlkem.py",
+        "mlkem_encap_testgen.py",
+    ],
     imports = [
         "../../../../../hw/ip/acc/util",
     ],
@@ -110,7 +116,10 @@ py_binary(
 # Encapsulation tests
 py_binary(
     name = "mlkem_decap_testgen",
-    srcs = ["mlkem_decap_testgen.py"],
+    srcs = [
+        "kaiburr_mlkem.py",
+        "mlkem_decap_testgen.py",
+    ],
     imports = [
         "../../../../../hw/ip/acc/util",
     ],

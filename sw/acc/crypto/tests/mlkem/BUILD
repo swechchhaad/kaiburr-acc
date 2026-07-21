@@ -16,6 +16,7 @@ package(default_visibility = ["//visibility:public"])
 MODE_FOR_PARAMS = {
     "kaiburr8": 24,
     "kaiburr6": 18,
+    "kaiburr4": 7,
 }
 
 # the simulator is deterministic, so re-running the same seed is byte and cycle-identical

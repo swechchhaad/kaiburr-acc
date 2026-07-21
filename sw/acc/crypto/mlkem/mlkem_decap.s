@@ -331,7 +331,7 @@ kyber_ciphertext_sizes:
 .word 0  /* K=4 (ML-KEM-1024) unused */
 .word 0  /* K=5 unused */
 .word 0  /* K=6 unused */
-.word 0  /* K=7 unused */
+.word 3072  /* K=7 (kaiburr4) */
 .word 0  /* K=8 unused */
 .word 0  /* K=9 unused */
 .word 0  /* K=10 unused */

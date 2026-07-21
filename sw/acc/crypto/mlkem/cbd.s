@@ -170,3 +170,69 @@ f6:
         /* keep LOOPI 2 from ending on the same instruction as LOOPI 8 */
         nop
     ret
+
+/*
+ * f4
+ *
+ *       samples the distribution f(n) with n = 4, per coefficient:
+ *           draw 4 random bits b0..b3
+ *           sign      = (2*b3 - 1)     (b3=1 => +1, b3=0 => -1)
+ *           magnitude = (1 - b0) + 2 * [b0..b2 all ones]   (in {0,1,2})
+ *           coeff     = sign * magnitude   (reduced into [0,q))
+ *       => P(0) = 1/2 - 2^-3, P(+-1) = 1/4, P(+-2) = 2^-4.
+ * note: f4 packs 2 coeffs per byte, so it consumes 256*4/8 = 128 input bytes
+ * (4 wide regs) and produces 256 coeffs (16 wide regs). 4-bit unpacking
+ * combined with the f8 arithmetic.
+ *
+ * @param[in]  x10: dptr_input, dmem pointer to input byte array (>= 128 bytes)
+ * @param[in]  x11: dptr_output, dmem pointer to output
+ * @param[in]  w31: all-zero (f4 zeroes it itself, like f8)
+ * @param[in]  MOD: low 16-bit lane = q (already set when f4 is reached)
+ *
+ * clobbered registers: x4 to x7, w0 to w10
+ */
+.globl f4
+f4:
+    /* re-establish the all-zero convention */
+    bn.xor w31, w31, w31
+
+    li x4, 0                    /* load idx  -> w0            */
+    li x7, 10                   /* store idx -> w10           */
+
+    /* masks (per 16-bit lane): w4 = 0x0007, w5 = 0x0001 */
+    bn.not     w3, w31          /* 0xFFFF                     */
+    bn.shv.16H w4, w3 >> 13     /* 0x0007  (low 3 bits)       */
+    bn.shv.16H w5, w3 >> 15     /* 0x0001                     */
+
+    /* 4 input wregs; each yields 64 coeffs = 4 output wregs */
+    LOOPI 4, 21
+        bn.lid x4, 0(x10++)     /* w0 = 32 bytes = 64 4-bit fields */
+
+        /* 4 output regs of 16 coeffs each */
+        LOOPI 4, 18
+            /* spread 16 raw 4-bit fields -> 16 zero-ext lanes in w9,
+               draining w0 by 4 bits per lane                        */
+            LOOPI 16, 3
+                bn.rshi w9, w0,  w9 >> 4    /* 4 data bits -> top lane */
+                bn.rshi w9, w31, w9 >> 12   /* zero-extend to 16 bits  */
+                bn.rshi w0, w31, w0 >> 4    /* w0 drains by 4 bits     */
+
+            /* per-coefficient kernel, identical to f8 except 0x07 / >>3 */
+            bn.and       w6,  w9, w5   /* b   = c & 1                 */
+            bn.and       w7,  w9, w4   /* t   = c & 0x07              */
+            bn.addv.16H  w7,  w7, w5   /* t  += 1                     */
+            bn.shv.16H   w7,  w7 >> 3  /* ind = t >> 3  in {0,1}      */
+            bn.shv.16H   w8,  w7 << 1  /* mag = 2*ind                 */
+            bn.addv.16H  w8,  w8, w5   /* mag = 2*ind + 1             */
+            bn.subv.16H  w8,  w8, w6   /* mag = 2*ind + 1 - b         */
+            bn.shv.16H   w6,  w9 >> 3  /* s   = bit3 (a_n)  in {0,1}  */
+            bn.subv.16H  w6,  w6,  w5  /* m   = s - 1 = 0xFFFF(s=0)/0 */
+            bn.subvm.16H w7,  w31, w8  /* neg = (q - mag) mod q       */
+            bn.xor       w10, w8,  w7  /* diff = mag ^ neg            */
+            bn.and       w10, w10, w6  /* diff &= m                   */
+            bn.xor       w10, w8,  w10 /* coeff = mag if s=1 else neg */
+
+            bn.sid x7, 0(x11++)
+        /* keep LOOPI 4 (outer) from ending on the same instruction as LOOPI 4 (mid) */
+        nop
+    ret

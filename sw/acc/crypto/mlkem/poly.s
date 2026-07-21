@@ -155,8 +155,8 @@ poly_getnoise_init:
  * Name:        poly_getnoise
  *
  * Description: Sample a polynomial deterministically from a seed and a nonce.
- *              The distribution is chosen at runtime by K. K==18 uses f6 (n=6, 192-byte squeeze), 
- *              any other K uses f8 (n=8, 256-byte squeeze). 
+ *              The distribution is chosen at runtime by K. K==7 uses f4 (n=4, 128-byte squeeze),
+ *              K==18 uses f6 (n=6, 192-byte squeeze), any other K uses f8 (n=8, 256-byte squeeze).
  *              Assumes `poly_getnoise_init` has been called first with the appropriate seed and nonce.
  *
  *              ML-KEM's eta1/eta2 distinction has been removed.
@@ -182,8 +182,11 @@ poly_getnoise:
   li   x5, 8
 
   /* pick the sampler by the runtime K in x14:
+   *   K == 7 : n=4, squeeze 128 bytes (4 wregs), sample with f4
    *   K == 18: n=6, squeeze 192 bytes (6 wregs), sample with f6
    *   else n=8, squeeze 256 bytes (8 wregs), sample with f8   */
+  li   x7, 7
+  beq  x14, x7, _poly_getnoise_n4
   li   x7, 18
   beq  x14, x7, _poly_getnoise_n6
 
@@ -202,6 +205,15 @@ _poly_getnoise_n6:
     bn.sid  x5, 0(x6++)
   bn.add w8, w0, w0
   jal    x1, f6
+  ret
+
+_poly_getnoise_n4:
+  /* for n = 4 : squeeze 128 bytes, then f4 */
+  LOOPI 4, 2
+    bn.wsrr w8, 0xA /* KECCAK_DIGEST */
+    bn.sid  x5, 0(x6++)
+  bn.add w8, w0, w0
+  jal    x1, f4
   ret
 
 /*

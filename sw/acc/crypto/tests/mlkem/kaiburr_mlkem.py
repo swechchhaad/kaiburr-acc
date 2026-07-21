@@ -6,16 +6,17 @@ KAIBURR_PARAMS = {
     # eta_1/eta_2 are unused
     "kaiburr8": {"k": 24, "eta_1": 2, "eta_2": 2, "du": 12, "dv": 12},
     "kaiburr6": {"k": 18, "eta_1": 2, "eta_2": 2, "du": 12, "dv": 12},
+    "kaiburr4": {"k": 7, "eta_1": 2, "eta_2": 2, "du": 12, "dv": 12},
 }
 
 
 class KaiburrKEM(ML_KEM):
     # noise sampler
     def _squeeze_len(self):
-        return 192 if self.k == 18 else 256          # bytes consumed per poly
+        return {7: 128, 18: 192, 24: 256}[self.k]    # bytes consumed per poly
 
     def _sample_noise(self, buf):
-        return self._f6(buf) if self.k == 18 else self._f8(buf)
+        return {7: self._f4, 18: self._f6, 24: self._f8}[self.k](buf)
 
     def _f8(self, buf):                   
         coeffs = [0] * 256
@@ -25,14 +26,24 @@ class KaiburrKEM(ML_KEM):
             coeffs[i] = (mag if (c >> 7) & 1 else -mag) % 3329 
         return self.R(coeffs)
 
-    def _f6(self, buf):                       
+    def _f6(self, buf):
         b = int.from_bytes(buf[:192], "little")
         coeffs = [0] * 256
         for i in range(256):
             c = b & 0x3F
             b >>= 6
             mag = (1 - (c & 1)) + 2 * ((c & 0x1F) == 0x1F)
-            coeffs[i] = (mag if (c >> 5) & 1 else -mag) % 3329 
+            coeffs[i] = (mag if (c >> 5) & 1 else -mag) % 3329
+        return self.R(coeffs)
+
+    def _f4(self, buf):
+        b = int.from_bytes(buf[:128], "little")
+        coeffs = [0] * 256
+        for i in range(256):
+            c = b & 0x0F
+            b >>= 4
+            mag = (1 - (c & 1)) + 2 * ((c & 0x07) == 0x07)
+            coeffs[i] = (mag if (c >> 3) & 1 else -mag) % 3329
         return self.R(coeffs)
 
     def _kaiburr_prf(self, sigma, N):

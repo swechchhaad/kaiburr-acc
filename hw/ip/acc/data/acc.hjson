@@ -800,10 +800,12 @@
 
     { skipto: "0x18000" }
 
-    // Dmem size (given as `items` below) must be a power of two.
+    // The total DMEM size must be a
+    // power of two. 127 kB visible + 1 kB scratch = 128 kB
     { window: {
         name: "DMEM",
-        items: "32768", // 128 kB visible over bus (+ 1 kB scratch)
+        items: "32512", // 127 kB visible over bus (+ 1 kB scratch)
+        unusual: "true",
         swaccess: "rw",
         data-intg-passthru: "true",
         byte-write: "false",
